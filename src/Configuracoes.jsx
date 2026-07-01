@@ -5,25 +5,11 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import { getApps, initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { db } from "./firebase.js";
 import {
   getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc,
   query, where, updateDoc, serverTimestamp, getDoc,
 } from "firebase/firestore";
-
-const _cfg = {
-  apiKey: "AIzaSyDSG7bfNh1oG1NNKS0Bgzjen4AdgF2APss",
-  authDomain: "systemstocker.firebaseapp.com",
-  projectId: "systemstocker",
-  storageBucket: "systemstocker.firebasestorage.app",
-  messagingSenderId: "934422043959",
-  appId: "1:934422043959:web:7b8dd513e85834dc598eb2",
-  measurementId: "G-BQ5H5ZS815"
-};
-const _app = getApps().length ? getApps()[0] : initializeApp(_cfg);
-const db = getFirestore(_app);
-const analytics = getAnalytics(_app);
 
 // ─── helpers ─────────────────────────────────────────────────
 const getCol = (setor, type) => `estoque_${setor}_${type}`;

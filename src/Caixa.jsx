@@ -5,24 +5,11 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { initializeApp, getApps } from "firebase/app";
+import { db } from "./firebase.js";
 import {
   getFirestore, collection, addDoc, getDocs, doc, getDoc,
   setDoc, query, where, updateDoc, increment, serverTimestamp, deleteDoc, onSnapshot
 } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDSG7bfNh1oG1NNKS0Bgzjen4AdgF2APss",
-  authDomain: "systemstocker.firebaseapp.com",
-  projectId: "systemstocker",
-  storageBucket: "systemstocker.firebasestorage.app",
-  messagingSenderId: "934422043959",
-  appId: "1:934422043959:web:7b8dd513e85834dc598eb2",
-  measurementId: "G-BQ5H5ZS815"
-};
-
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 const params = new URLSearchParams(window.location.search);
 const empresaId = params.get("empresa") || "default";

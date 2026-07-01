@@ -1,28 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Analytics } from "./Analytics.jsx";
 import { Configuracoes } from "./Configuracoes.jsx";
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth, db, googleProvider } from "./firebase.js";
+import { getAuth, signInWithEmailAndPassword, signOut, signInWithPopup } from "firebase/auth";
 import {
   getFirestore, collection, addDoc, getDocs, doc, deleteDoc,
   setDoc, query, where, updateDoc, increment, orderBy, limit, serverTimestamp, getDoc,
+  onSnapshot,
 } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDSG7bfNh1oG1NNKS0Bgzjen4AdgF2APss",
-  authDomain: "systemstocker.firebaseapp.com",
-  projectId: "systemstocker",
-  storageBucket: "systemstocker.firebasestorage.app",
-  messagingSenderId: "934422043959",
-  appId: "1:934422043959:web:7b8dd513e85834dc598eb2",
-  measurementId: "G-BQ5H5ZS815"
-};
-
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const auth = getAuth(app);
-const db = getFirestore(app);
 
 // ============================================================
 // SVG ICONS
