@@ -620,8 +620,7 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
   const loginWithGoogle = async () => {
     setErr(""); setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const r = await signInWithPopup(auth, provider);
+      const r = await signInWithPopup(auth, googleProvider);
       onLogin(r.user);
     } catch (ex) {
       setErr("Erro ao entrar com Google: " + ex.message);
