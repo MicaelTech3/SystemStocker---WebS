@@ -26,16 +26,39 @@
             align-items: center;
             min-height: 100vh;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ambient-video {
+            position: absolute;
+            width: 700px;
+            height: 700px;
+            object-fit: cover;
+            border-radius: 50%;
+            filter: blur(120px) opacity(0.25);
+            pointer-events: none;
+            z-index: 1;
+            animation: floatAmbient 22s ease-in-out infinite;
+        }
+
+        @keyframes floatAmbient {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(80px, -60px) scale(1.1); }
         }
 
         .container {
             max-width: 450px;
             padding: 40px;
-            background: var(--surface);
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-radius: 28px;
-            border: 1px solid #2A2A2A;
+            border: 1px solid rgba(42, 42, 42, 0.5);
             box-shadow: 0 25px 50px rgba(0,0,0,0.6);
             margin: 20px;
+            position: relative;
+            z-index: 2;
         }
 
         .logo img {
@@ -90,6 +113,9 @@
     </style>
 </head>
 <body>
+
+    <video class="ambient-video" src="s.mp4" autoplay loop muted playsinline style="top: -15%; left: -15%;"></video>
+    <video class="ambient-video" src="s.mp4" autoplay loop muted playsinline style="bottom: -15%; right: -15%; animation-delay: -10s; width: 600px; height: 600px;"></video>
 
     <div class="container">
         <div class="logo">

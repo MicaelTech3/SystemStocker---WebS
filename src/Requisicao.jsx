@@ -5,27 +5,30 @@
 
 import { useState, useEffect, useRef } from "react";
 import { initializeApp, getApps } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import {
   getFirestore, collection, addDoc, getDocs, doc, getDoc,
   query, orderBy, serverTimestamp,
 } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBH3hxzhFe1IWyIO58wE2kcnL1lpxBy8ZM",
-  authDomain: "sytemstock.firebaseapp.com",
-  projectId: "sytemstock",
-  storageBucket: "sytemstock.firebasestorage.app",
-  messagingSenderId: "643733507908",
-  appId: "1:643733507908:web:1d3bce112d337534799111",
+  apiKey: "AIzaSyDSG7bfNh1oG1NNKS0Bgzjen4AdgF2APss",
+  authDomain: "systemstocker.firebaseapp.com",
+  projectId: "systemstocker",
+  storageBucket: "systemstocker.firebasestorage.app",
+  messagingSenderId: "934422043959",
+  appId: "1:934422043959:web:7b8dd513e85834dc598eb2",
+  measurementId: "G-BQ5H5ZS815"
 };
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const analytics = getAnalytics(app);
 
 // ─── Chave de sessão ─────────────────────────────────────────
 const SESSION_KEY = "req_session_v1";
 
 function saveSession(setorKey) {
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ setorKey, ts: Date.now() })); } catch {}
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ setorKey, ts: Date.now() })); } catch { }
 }
 function loadSession() {
   try {
@@ -38,51 +41,64 @@ function loadSession() {
   } catch { return null; }
 }
 function clearSession() {
-  try { localStorage.removeItem(SESSION_KEY); } catch {}
+  try { localStorage.removeItem(SESSION_KEY); } catch { }
 }
 
-// colBase        = banco COMPARTILHADO — produtos, categorias (exfood e bilheteria usam o mesmo)
-// colBasePrivate = banco EXCLUSIVO — requisições, config (PIN), req_usuarios
-const SETORES = {
-  ti:          { label:"TI",          icon:"🖥️",  color:"#3b82f6", colBase:"estoque_ti",          colBasePrivate:"estoque_ti"          },
-  exfood:      { label:"X-food",      icon:"🍽️",  color:"#f5a623", colBase:"estoque_exfood",      colBasePrivate:"estoque_exfood"      },
-  bilheteria:  { label:"Bilheteria",  icon:"🎟️",  color:"#ec4899", colBase:"estoque_exfood",      colBasePrivate:"estoque_bilheteria"  },
-  limpeza:     { label:"Limpeza",     icon:"✨",  color:"#52c41a", colBase:"estoque_limpeza",     colBasePrivate:"estoque_limpeza"     },
-  ferramentas: { label:"Ferramentas", icon:"🔧",  color:"#a855f7", colBase:"estoque_ferramentas", colBasePrivate:"estoque_ferramentas" },
+const getEmojiForIcon = (iconName) => {
+  const mapping = {
+    monitor: "🖥️",
+    utensils: "🍽️",
+    sparkles: "✨",
+    broom: "🧹",
+    wrench: "🔧",
+    tools: "🔧",
+    hammer: "🔨",
+    home: "🏠",
+    package: "📦",
+    tag: "🎟️",
+    cpu: "💻",
+    grid: "📊",
+    clipboardList: "📋",
+  };
+  return mapping[iconName] || "📦";
 };
-const FERRAMENTAS_SUB = {
-  fti:         { label:"Ferramentas TI",         icon:"💻", color:"#38bdf8", colBase:"estoque_ferramentas_ti",         colBasePrivate:"estoque_ferramentas_ti"         },
-  fmanutencao: { label:"Ferramentas Manutenção", icon:"🔨", color:"#fb923c", colBase:"estoque_ferramentas_manutencao", colBasePrivate:"estoque_ferramentas_manutencao" },
-};
-const ALL_SETORES = { ...SETORES, ...FERRAMENTAS_SUB };
-// getCol: produtos, categorias, produtos_padrao — banco COMPARTILHADO
-const getCol = (k, t) => `${ALL_SETORES[k].colBase}_${t}`;
-// getColPrivate: requisições, config (PIN), req_usuarios — banco EXCLUSIVO por setor
-const getColPrivate = (k, t) => `${ALL_SETORES[k].colBasePrivate}_${t}`;
+
+const params = new URLSearchParams(window.location.search);
+const empresaId = params.get("empresa") || "default";
+
+const getCol = (k, t) => `users/${empresaId}/setores/${k}/${t}`;
+const getColPrivate = (k, t) => `users/${empresaId}/setores/${k}/${t}`;
 
 // ─── CSS ─────────────────────────────────────────────────────
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
   :root {
-    --bg:#0a0a0a; --surface:#141414; --surface2:#1c1c1c;
-    --border:#2a2a2a; --border2:#333;
-    --accent:#f5a623; --accent2:#e85d04;
-    --success:#4ade80; --danger:#f87171; --info:#60a5fa; --warn:#facc15;
-    --text:#f0f0f0; --text-dim:#777; --text-mid:#aaa;
+    --bg:#f5f2e9; --surface:#ffffff; --surface2:#e9e4d4;
+    --border:#dfd9c4; --border2:#ccc4a8;
+    --accent:#f97316; --accent2:#ea580c;
+    --success:#10b981; --danger:#ef4444; --info:#3b82f6; --warn:#f59e0b;
+    --text:#292524; --text-dim:#78716c; --text-mid:#57534e;
     --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif; --display:'Bebas Neue',sans-serif;
-    --r:4px;
+    --r:6px;
+  }
+  .dark {
+    --bg:#0c0a09; --surface:#1c1917; --surface2:#292524;
+    --border:#2e2a28; --border2:#3f3a37;
+    --text:#fafaf9; --text-dim:#a8a29e; --text-mid:#d6d3d1;
   }
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-  html, body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; }
+  html, body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; transition: background 0.25s, color 0.25s; }
   ::-webkit-scrollbar { width:4px; }
   ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
 
-  .req-app { min-height:100vh; display:flex; flex-direction:column; }
+  .req-app { min-height:100vh; display:flex; flex-direction:column; position:relative; overflow:hidden; background:var(--bg); color:var(--text); }
+  .ambient-video { position:absolute; width:700px; height:700px; object-fit:cover; border-radius:50%; filter:blur(40px) opacity(0.35); pointer-events:none; z-index:1; animation:floatAmbient 22s ease-in-out infinite; }
+  @keyframes floatAmbient { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(80px, -60px) scale(1.1); } }
   .req-header { background:var(--surface); border-bottom:1px solid var(--border); height:52px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; position:sticky; top:0; z-index:100; }
-  .req-logo { font-family:var(--display); font-size:20px; letter-spacing:3px; color:var(--accent); }
-  .req-badge { font-family:var(--mono); font-size:10px; letter-spacing:2px; padding:3px 10px; border:1px solid var(--border2); color:var(--text-dim); border-radius:var(--r); cursor:pointer; background:transparent; transition:all .15s; }
+  .req-logo { font-family:var(--display); font-size:16px; letter-spacing:2px; color:var(--accent); }
+  .req-badge { background:var(--surface); border:1px solid var(--border2); color:var(--text-dim); padding:3px 10px; font-family:var(--mono); font-size:10px; letter-spacing:2px; border-radius:var(--r); cursor:pointer; transition:all .15s; }
   .req-badge.active { border-color:var(--accent); color:var(--accent); }
-  .req-content { flex:1; padding:24px 16px; max-width:600px; margin:0 auto; width:100%; }
+  .req-content { flex:1; padding:24px 16px; max-width:600px; margin:0 auto; width:100%; position:relative; z-index:2; }
 
   .setor-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:20px; }
   @media(min-width:480px){ .setor-grid { grid-template-columns:repeat(3,1fr); } }
@@ -202,9 +218,9 @@ const css = `
   /* Toast */
   .toast-wrap { position:fixed; bottom:20px; right:14px; z-index:9999; display:flex; flex-direction:column; gap:5px; max-width:calc(100vw - 28px); }
   .toast { padding:10px 14px; font-family:var(--mono); font-size:11px; border-left:3px solid; min-width:190px; animation:tin .25s ease; border-radius:0 var(--r) var(--r) 0; }
-  .toast-success { background:rgba(20,30,20,.97); border-color:var(--success); color:var(--success); }
-  .toast-error   { background:rgba(30,15,15,.97);  border-color:var(--danger);  color:var(--danger); }
-  .toast-info    { background:rgba(20,20,30,.97);  border-color:var(--info);    color:var(--info); }
+  .toast-success { background:#ecfdf5; border-color:var(--success); color:#065f46; }
+  .toast-error   { background:#fef2f2; border-color:var(--danger); color:#991b1b; }
+  .toast-info    { background:#eff6ff; border-color:var(--info); color:#1e40af; }
   @keyframes tin { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
 
   /* Usuários */
@@ -253,8 +269,8 @@ const ToastEl = ({ toasts }) => (
 
 // ─── PIN (genérico — login ou logout) ────────────────────────
 function PinScreen({ setor, setorKey, mode = "login", onSuccess, onCancel }) {
-  const [pin, setPin]     = useState("");
-  const [err, setErr]     = useState("");
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
   const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -284,8 +300,8 @@ function PinScreen({ setor, setorKey, mode = "login", onSuccess, onCancel }) {
   };
 
   const press = (d) => { if (pin.length < 4 && !loading) setPin(p => p + d); };
-  const del   = () => setPin(p => p.slice(0, -1));
-  const digits = [1,2,3,4,5,6,7,8,9,null,0,"del"];
+  const del = () => setPin(p => p.slice(0, -1));
+  const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, "del"];
 
   const isLogout = mode === "logout";
 
@@ -302,19 +318,19 @@ function PinScreen({ setor, setorKey, mode = "login", onSuccess, onCancel }) {
         </div>
       </div>
       <div className="pin-display">
-        {[0,1,2,3].map(i => <div key={i} className={`pin-dot ${pin.length>i?(shake?"error":"filled"):""}`}/>)}
+        {[0, 1, 2, 3].map(i => <div key={i} className={`pin-dot ${pin.length > i ? (shake ? "error" : "filled") : ""}`} />)}
       </div>
       <div className="pin-grid">
         {digits.map((d, i) => {
-          if (d === null) return <div key={i}/>;
+          if (d === null) return <div key={i} />;
           if (d === "del") return <button key={i} className="pin-btn del" onClick={del} disabled={loading}>⌫</button>;
           return <button key={i} className="pin-btn" onClick={() => press(String(d))} disabled={loading || pin.length === 4}>{d}</button>;
         })}
       </div>
       <div className="pin-err">{err}</div>
       {onCancel && (
-        <div style={{ textAlign:"center", marginTop:10 }}>
-          <button className="btn btn-outline" style={{ width:"100%" }} onClick={onCancel}>Cancelar</button>
+        <div style={{ textAlign: "center", marginTop: 10 }}>
+          <button className="btn btn-outline" style={{ width: "100%" }} onClick={onCancel}>Cancelar</button>
         </div>
       )}
     </div>
@@ -324,7 +340,7 @@ function PinScreen({ setor, setorKey, mode = "login", onSuccess, onCancel }) {
 // ─── Modal de Logout ──────────────────────────────────────────
 function LogoutModal({ setor, setorKey, onConfirm, onCancel }) {
   return (
-    <div className="logout-overlay" onClick={e => e.target===e.currentTarget && onCancel()}>
+    <div className="logout-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="logout-box">
         <div className="logout-title">SAIR DO SETOR</div>
         <div className="logout-sub">Digite a senha para confirmar a saída</div>
@@ -342,16 +358,16 @@ function LogoutModal({ setor, setorKey, onConfirm, onCancel }) {
 
 // ─── Painel inline de busca + quantidade ─────────────────────
 function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
-  const [produtos, setProdutos]     = useState([]);
+  const [produtos, setProdutos] = useState([]);
   const [estoqueMap, setEstoqueMap] = useState({});
-  const [cats, setCats]             = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [busca, setBusca]           = useState("");
-  const [catFiltro, setCatFiltro]   = useState("");
-  const [sel, setSel]               = useState(null);
-  const [qtd, setQtd]               = useState(1);
+  const [cats, setCats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [catFiltro, setCatFiltro] = useState("");
+  const [sel, setSel] = useState(null);
+  const [qtd, setQtd] = useState(1);
   const inputRef = useRef(null);
-  const qtdRef   = useRef(null);
+  const qtdRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -366,7 +382,7 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
         const map = {};
         se.docs.forEach(d => { const x = d.data(); map[x.nome] = x.quantidade ?? 0; });
         setEstoqueMap(map);
-      } catch {}
+      } catch { }
       finally { setLoading(false); }
     })();
   }, [setorKey]);
@@ -381,8 +397,8 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
     .filter(p => !jaAdicionados.some(j => j.nome === p.nome));
 
   const estoque = sel ? (estoqueMap[sel.nome] ?? null) : null;
-  const qtdNum  = Math.max(1, parseInt(qtd) || 1);
-  const excede  = estoque !== null && qtdNum > estoque;
+  const qtdNum = Math.max(1, parseInt(qtd) || 1);
+  const excede = estoque !== null && qtdNum > estoque;
 
   const handleSelect = (p) => {
     setSel(prev => prev?.id === p.id ? null : p);
@@ -403,15 +419,15 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
   };
 
   if (loading) return (
-    <div className="add-panel" style={{ padding:20, textAlign:"center" }}>
-      <span className="spinner"/>
+    <div className="add-panel" style={{ padding: 20, textAlign: "center" }}>
+      <span className="spinner" />
     </div>
   );
 
   return (
     <div className="add-panel">
       <div className="search-row">
-        <span style={{ fontSize:14, color:"var(--text-dim)" }}>🔍</span>
+        <span style={{ fontSize: 14, color: "var(--text-dim)" }}>🔍</span>
         <input
           ref={inputRef}
           type="text"
@@ -423,17 +439,17 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
           spellCheck={false}
         />
         {busca && (
-          <button className="btn-ghost" style={{ padding:"2px 4px", fontSize:11 }}
+          <button className="btn-ghost" style={{ padding: "2px 4px", fontSize: 11 }}
             onClick={() => { setBusca(""); setSel(null); inputRef.current?.focus(); }}>✕</button>
         )}
       </div>
 
       {cats.length > 1 && (
         <div className="cat-strip">
-          {[{ id:"__all", nome:"Todos" }, ...cats].map(c => {
+          {[{ id: "__all", nome: "Todos" }, ...cats].map(c => {
             const val = c.id === "__all" ? "" : c.nome;
             return (
-              <button key={c.id} className={`cat-chip ${catFiltro===val?"on":""}`}
+              <button key={c.id} className={`cat-chip ${catFiltro === val ? "on" : ""}`}
                 onClick={() => { setCatFiltro(val); setSel(null); }}>
                 {c.nome}
               </button>
@@ -444,30 +460,30 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
 
       <div className="prod-list">
         {filtrados.length === 0
-          ? <div className="empty" style={{ padding:"14px 12px" }}>
-              {busca ? `Nenhum resultado para "${busca}"` : "Nenhum produto disponível"}
-            </div>
+          ? <div className="empty" style={{ padding: "14px 12px" }}>
+            {busca ? `Nenhum resultado para "${busca}"` : "Nenhum produto disponível"}
+          </div>
           : filtrados.map(p => {
-              const stk = estoqueMap[p.nome] ?? null;
-              const zero = stk !== null && stk <= 0;
-              const isSel = sel?.id === p.id;
-              return (
-                <div key={p.id}
-                  className={`prod-row ${isSel?"selected":""} ${zero?"unavail":""}`}
-                  onClick={() => !zero && handleSelect(p)}
-                >
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div className="prod-row-name">{p.nome}</div>
-                    <div className="prod-row-cat">{p.categoria}</div>
-                  </div>
-                  {stk !== null && (
-                    <div className={`prod-stock ${zero?"zero":stk<=5?"warn":"ok"}`}>
-                      {zero ? "sem estoque" : `${stk} un.`}
-                    </div>
-                  )}
+            const stk = estoqueMap[p.nome] ?? null;
+            const zero = stk !== null && stk <= 0;
+            const isSel = sel?.id === p.id;
+            return (
+              <div key={p.id}
+                className={`prod-row ${isSel ? "selected" : ""} ${zero ? "unavail" : ""}`}
+                onClick={() => !zero && handleSelect(p)}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="prod-row-name">{p.nome}</div>
+                  <div className="prod-row-cat">{p.categoria}</div>
                 </div>
-              );
-            })}
+                {stk !== null && (
+                  <div className={`prod-stock ${zero ? "zero" : stk <= 5 ? "warn" : "ok"}`}>
+                    {zero ? "sem estoque" : `${stk} un.`}
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </div>
 
       {sel && (
@@ -475,7 +491,7 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
           <div className="qty-name">{sel.nome}</div>
           <div className="qty-controls">
             <button className="qty-btn"
-              onClick={() => setQtd(q => Math.max(1, (parseInt(q)||1) - 1))}>−</button>
+              onClick={() => setQtd(q => Math.max(1, (parseInt(q) || 1) - 1))}>−</button>
             <input
               ref={qtdRef}
               type="number"
@@ -489,20 +505,20 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
             />
             <button className="qty-btn"
               onClick={() => setQtd(q => {
-                const n = (parseInt(q)||1) + 1;
+                const n = (parseInt(q) || 1) + 1;
                 return estoque !== null ? Math.min(estoque, n) : n;
               })}>+</button>
           </div>
           <button
             className="btn btn-accent"
-            style={{ padding:"7px 14px", fontSize:12 }}
+            style={{ padding: "7px 14px", fontSize: 12 }}
             onClick={handleAdd}
             disabled={excede || qtdNum < 1}
           >
             + ADD
           </button>
           {estoque !== null && (
-            <div className={`qty-msg ${excede?"over":"ok"}`}>
+            <div className={`qty-msg ${excede ? "over" : "ok"}`}>
               {excede ? `⚠ Disponível: ${estoque} un.` : `✓ ${estoque} em estoque`}
             </div>
           )}
@@ -514,17 +530,17 @@ function AddItemInline({ setorKey, onAdd, jaAdicionados }) {
 
 // ─── Formulário ───────────────────────────────────────────────
 function FormRequisicao({ setorKey, setor, onBack, toast }) {
-  const [itens, setItens]               = useState([]);
-  const [obs, setObs]                   = useState("");
-  const [solicitante, setSolicitante]   = useState("");
-  const [usuarios, setUsuarios]         = useState([]);
+  const [itens, setItens] = useState([]);
+  const [obs, setObs] = useState("");
+  const [solicitante, setSolicitante] = useState("");
+  const [usuarios, setUsuarios] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loading, setLoading]           = useState(false);
-  const [enviado, setEnviado]           = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [enviado, setEnviado] = useState(null);
 
   useEffect(() => {
     getDocs(collection(db, getColPrivate(setorKey, "req_usuarios")))
-      .then(s => setUsuarios(s.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b)=>a.nome.localeCompare(b.nome))))
+      .then(s => setUsuarios(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nome.localeCompare(b.nome))))
       .catch(() => setUsuarios([]))
       .finally(() => setLoadingUsers(false));
   }, [setorKey]);
@@ -546,8 +562,8 @@ function FormRequisicao({ setorKey, setor, onBack, toast }) {
   const remover = (idx) => setItens(p => p.filter((_, i) => i !== idx));
 
   const enviar = async () => {
-    if (itens.length === 0)  { toast("Adicione pelo menos um item.", "error"); return; }
-    if (!solicitante.trim()) { toast("Informe quem está pedindo.", "error");   return; }
+    if (itens.length === 0) { toast("Adicione pelo menos um item.", "error"); return; }
+    if (!solicitante.trim()) { toast("Informe quem está pedindo.", "error"); return; }
     setLoading(true);
     try {
       const codigo = genCodigo();
@@ -571,7 +587,7 @@ function FormRequisicao({ setorKey, setor, onBack, toast }) {
         <div className="success-sub">Requisição registrada com sucesso.</div>
         <div className="success-sub">Código:</div>
         <div className="success-code">{enviado}</div>
-        <div style={{ marginTop:24 }}>
+        <div style={{ marginTop: 24 }}>
           <button className="btn btn-outline btn-lg" onClick={() => setEnviado(null)}>NOVA REQUISIÇÃO</button>
         </div>
       </div>
@@ -581,40 +597,40 @@ function FormRequisicao({ setorKey, setor, onBack, toast }) {
   return (
     <div>
       <div className="selected-setor-bar">
-        <span style={{ fontSize:18 }}>{setor.icon}</span>
-        <span style={{ fontFamily:"var(--display)", fontSize:18, letterSpacing:2, color:setor.color }}>{setor.label}</span>
+        <span style={{ fontSize: 18 }}>{setor.icon}</span>
+        <span style={{ fontFamily: "var(--display)", fontSize: 18, letterSpacing: 2, color: setor.color }}>{setor.label}</span>
       </div>
 
       <div className="card">
         <div className="card-title">NOVA REQUISIÇÃO</div>
 
-        <div style={{ marginBottom:16 }}>
+        <div style={{ marginBottom: 16 }}>
           <label className="form-label">Quem está pedindo? *</label>
           {loadingUsers
-            ? <div style={{ padding:"8px 0" }}><span className="spinner"/></div>
+            ? <div style={{ padding: "8px 0" }}><span className="spinner" /></div>
             : usuarios.length === 0
               ? <input className="form-input" placeholder="Seu nome..."
-                  value={solicitante} onChange={e => setSolicitante(e.target.value)}/>
+                value={solicitante} onChange={e => setSolicitante(e.target.value)} />
               : (
                 <div className="user-grid">
                   {usuarios.map(u => (
                     <button key={u.id}
-                      className={`user-btn ${solicitante===u.nome?"selected":""}`}
+                      className={`user-btn ${solicitante === u.nome ? "selected" : ""}`}
                       onClick={() => setSolicitante(u.nome)}>
                       <span>👤</span>
-                      <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nome}</span>
-                      {solicitante===u.nome && <span>✓</span>}
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.nome}</span>
+                      {solicitante === u.nome && <span>✓</span>}
                     </button>
                   ))}
                 </div>
               )}
         </div>
 
-        <div className="divider"/>
+        <div className="divider" />
 
         {itens.length > 0 && (
-          <div style={{ marginBottom:12 }}>
-            <label className="form-label" style={{ marginBottom:8 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label className="form-label" style={{ marginBottom: 8 }}>
               Itens do pedido ({itens.length})
             </label>
             <div className="items-list">
@@ -632,18 +648,18 @@ function FormRequisicao({ setorKey, setor, onBack, toast }) {
           </div>
         )}
 
-        <label className="form-label" style={{ marginBottom:8, display:"block" }}>
+        <label className="form-label" style={{ marginBottom: 8, display: "block" }}>
           {itens.length === 0 ? "Adicionar itens *" : "Adicionar mais itens"}
         </label>
-        <AddItemInline setorKey={setorKey} onAdd={addItem} jaAdicionados={itens}/>
+        <AddItemInline setorKey={setorKey} onAdd={addItem} jaAdicionados={itens} />
 
-        <div className="divider"/>
+        <div className="divider" />
 
-        <div style={{ marginBottom:14 }}>
-          <label className="form-label">Observações <span style={{ color:"var(--text-dim)", fontWeight:400 }}>(opcional)</span></label>
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label">Observações <span style={{ color: "var(--text-dim)", fontWeight: 400 }}>(opcional)</span></label>
           <textarea className="form-textarea"
             placeholder="Urgência, local de entrega..."
-            value={obs} onChange={e => setObs(e.target.value)}/>
+            value={obs} onChange={e => setObs(e.target.value)} />
         </div>
 
         <button
@@ -652,8 +668,8 @@ function FormRequisicao({ setorKey, setor, onBack, toast }) {
           disabled={loading || itens.length === 0 || !solicitante.trim()}
         >
           {loading
-            ? <><span className="spinner"/> ENVIANDO...</>
-            : `📤 ENVIAR (${itens.length} ${itens.length === 1?"item":"itens"})`}
+            ? <><span className="spinner" /> ENVIANDO...</>
+            : `📤 ENVIAR (${itens.length} ${itens.length === 1 ? "item" : "itens"})`}
         </button>
       </div>
     </div>
@@ -662,7 +678,7 @@ function FormRequisicao({ setorKey, setor, onBack, toast }) {
 
 // ─── Histórico ───────────────────────────────────────────────
 function HistoricoRequisicoes({ setorKey, setor }) {
-  const [reqs, setReqs]       = useState([]);
+  const [reqs, setReqs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -675,30 +691,30 @@ function HistoricoRequisicoes({ setorKey, setor }) {
     })();
   }, [setorKey]);
 
-  const cls = { pendente:"s-pendente", aprovado:"s-aprovado", recusado:"s-recusado", entregue:"s-entregue" };
-  const lbl = { pendente:"Pendente", aprovado:"Aprovado", recusado:"Recusado", entregue:"Entregue" };
+  const cls = { pendente: "s-pendente", aprovado: "s-aprovado", recusado: "s-recusado", entregue: "s-entregue" };
+  const lbl = { pendente: "Pendente", aprovado: "Aprovado", recusado: "Recusado", entregue: "Entregue" };
 
-  if (loading) return <div className="empty"><span className="spinner"/></div>;
+  if (loading) return <div className="empty"><span className="spinner" /></div>;
 
   return (
     <div>
       <div className="page-hd">
-        <div className="page-title" style={{ color:setor.color }}>HISTÓRICO</div>
+        <div className="page-title" style={{ color: setor.color }}>HISTÓRICO</div>
         <div className="page-sub">{setor.label}</div>
       </div>
-      <div className="card" style={{ padding:0 }}>
+      <div className="card" style={{ padding: 0 }}>
         {reqs.length === 0
           ? <div className="empty">Nenhuma requisição ainda.</div>
           : reqs.map(r => (
             <div key={r.id} className="hist-item">
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap", marginBottom:2 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 2 }}>
                 <div className="hist-code">{r.codigo}</div>
-                <span className={`status-badge ${cls[r.status]||"s-pendente"}`}>{lbl[r.status]||r.status}</span>
+                <span className={`status-badge ${cls[r.status] || "s-pendente"}`}>{lbl[r.status] || r.status}</span>
               </div>
               <div className="hist-date">{fmtDate(r.criadoEm)} · {r.solicitante}</div>
-              <div className="hist-items">{r.itens?.map(i=>`${i.nome} (${i.quantidade}×)`).join(", ")}</div>
-              {r.observacao && <div style={{ fontFamily:"var(--mono)", fontSize:10, color:"var(--text-dim)", marginTop:3 }}>Obs: {r.observacao}</div>}
-              {r.respostaAdmin && <div style={{ fontFamily:"var(--mono)", fontSize:10, color:"var(--info)", marginTop:3 }}>Admin: {r.respostaAdmin}</div>}
+              <div className="hist-items">{r.itens?.map(i => `${i.nome} (${i.quantidade}×)`).join(", ")}</div>
+              {r.observacao && <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)", marginTop: 3 }}>Obs: {r.observacao}</div>}
+              {r.respostaAdmin && <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--info)", marginTop: 3 }}>Admin: {r.respostaAdmin}</div>}
             </div>
           ))}
       </div>
@@ -708,18 +724,41 @@ function HistoricoRequisicoes({ setorKey, setor }) {
 
 // ─── APP ─────────────────────────────────────────────────────
 export default function RequisicaoApp() {
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   // Inicializa a partir da sessão salva
-  const [setorKey, setSetorKey]     = useState(() => loadSession()?.setorKey ?? null);
-  const [fase, setFase]             = useState(() => loadSession()?.setorKey ? "form" : "setores");
-  const [subTab, setSubTab]         = useState("form");
+  const [sectors, setSectors] = useState([]);
+  const [loadingSectors, setLoadingSectors] = useState(true);
+  const [setorKey, setSetorKey] = useState(() => loadSession()?.setorKey ?? null);
+  const [fase, setFase] = useState(() => loadSession()?.setorKey ? "form" : "setores");
+  const [subTab, setSubTab] = useState("form");
   const [showLogout, setShowLogout] = useState(false);
-  const { toasts, add: toast }      = useToast();
+  const { toasts, add: toast } = useToast();
 
-  const setor = setorKey ? ALL_SETORES[setorKey] : null;
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    localStorage.setItem("theme", next);
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, "users", empresaId, "setores"));
+        setSectors(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) {
+        console.error("Erro ao carregar setores:", e);
+      } finally {
+        setLoadingSectors(false);
+      }
+    };
+    load();
+  }, []);
+
+  const sectorObj = sectors.find(s => s.id === setorKey);
+  const setor = sectorObj ? { ...sectorObj, icon: getEmojiForIcon(sectorObj.iconName), color: sectorObj.color } : null;
 
   // ── Selecionar setor → PIN → salva sessão ──────────────────
   const selecionarSetor = (key) => {
-    if (key === "ferramentas") { setFase("ferramentas"); return; }
     setSetorKey(key);
     setFase("pin");
   };
@@ -727,7 +766,7 @@ export default function RequisicaoApp() {
   const onPinSuccess = () => {
     saveSession(setorKey);        // ← persiste a sessão
     setFase("form");
-    toast(`Setor ${ALL_SETORES[setorKey].label} selecionado`, "success");
+    toast(`Setor ${sectorObj?.label || setorKey} selecionado`, "success");
   };
 
   // ── Logout ─────────────────────────────────────────────────
@@ -741,38 +780,47 @@ export default function RequisicaoApp() {
   };
 
   const voltarPin = () => {
-    if (fase === "ferramentas") { setFase("setores"); setSetorKey(null); }
-    else if (fase === "pin")    { setFase(setorKey in FERRAMENTAS_SUB ? "ferramentas" : "setores"); setSetorKey(null); }
+    if (fase === "pin") { setFase("setores"); setSetorKey(null); }
   };
 
   return (
     <>
       <style>{css}</style>
-      <div className="req-app">
+      <div className={`req-app ${theme}`}>
+        <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ top: "-15%", left: "-15%" }}></video>
+        <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ bottom: "-15%", right: "-15%", animationDelay: "-11s", width: "550px", height: "550px" }}></video>
 
         {/* ── Header ── */}
-        <header className="req-header">
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div className="req-logo">PARK</div>
+        <header className="req-header" style={{ position: "relative", zIndex: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="req-logo">SystemStocker</div>
             {/* Indicador do setor logado */}
             {setor && fase === "form" && (
-              <span className="setor-pill" style={{ color:setor.color, borderColor:setor.color }}>
+              <span className="setor-pill" style={{ color: setor.color, borderColor: setor.color }}>
                 {setor.icon} {setor.label}
               </span>
             )}
           </div>
 
-          <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button onClick={toggleTheme} className="req-badge" style={{ borderRadius: "50%", width: 28, height: 28, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }} aria-label="Toggle Theme">
+              {theme === "light" ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+              )}
+            </button>
+
             <a href="/Baixar/user.html" className="req-badge btn-download">APP USER Android</a>
 
             {setor && fase === "form" && (
               <>
-                <button className={`req-badge ${subTab==="form"?"active":""}`} onClick={() => setSubTab("form")}>Pedido</button>
-                <button className={`req-badge ${subTab==="hist"?"active":""}`} onClick={() => setSubTab("hist")}>Histórico</button>
+                <button className={`req-badge ${subTab === "form" ? "active" : ""}`} onClick={() => setSubTab("form")}>Pedido</button>
+                <button className={`req-badge ${subTab === "hist" ? "active" : ""}`} onClick={() => setSubTab("hist")}>Histórico</button>
                 {/* Botão Sair */}
                 <button
                   className="req-badge"
-                  style={{ borderColor:"var(--danger)", color:"var(--danger)" }}
+                  style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
                   onClick={() => setShowLogout(true)}
                 >
                   Sair
@@ -781,7 +829,7 @@ export default function RequisicaoApp() {
             )}
 
             {(!setor || fase !== "form") && (
-              <span className="req-badge" style={{ cursor:"default" }}>REQ</span>
+              <span className="req-badge" style={{ cursor: "default" }}>REQ</span>
             )}
           </div>
         </header>
@@ -796,34 +844,20 @@ export default function RequisicaoApp() {
                 <div className="page-title">REQUISIÇÃO</div>
                 <div className="page-sub">Selecione o setor</div>
               </div>
-              <div className="setor-grid">
-                {Object.entries(SETORES).map(([key, s]) => (
-                  <div key={key} className="setor-card" style={{ "--c":s.color }} onClick={() => selecionarSetor(key)}>
-                    <div className="setor-card-icon">{s.icon}</div>
-                    <div className="setor-card-name">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Sub-setores ferramentas */}
-          {fase === "ferramentas" && (
-            <>
-              <button className="back-btn" onClick={() => setFase("setores")}>← Voltar</button>
-              <div className="page-hd">
-                <div className="page-title">FERRAMENTAS</div>
-                <div className="page-sub">Sub-setor</div>
-              </div>
-              <div className="ferr-sub-grid">
-                {Object.entries(FERRAMENTAS_SUB).map(([key, s]) => (
-                  <div key={key} className="setor-card" style={{ "--c":s.color }}
-                    onClick={() => { setSetorKey(key); setFase("pin"); }}>
-                    <div className="setor-card-icon">{s.icon}</div>
-                    <div className="setor-card-name">{s.label}</div>
-                  </div>
-                ))}
-              </div>
+              {loadingSectors ? (
+                <div className="empty"><span className="spinner" /></div>
+              ) : sectors.length === 0 ? (
+                <div className="empty">Nenhum setor cadastrado no sistema.</div>
+              ) : (
+                <div className="setor-grid">
+                  {sectors.map(s => (
+                    <div key={s.id} className="setor-card" style={{ "--c": s.color }} onClick={() => selecionarSetor(s.id)}>
+                      <div className="setor-card-icon">{getEmojiForIcon(s.iconName)}</div>
+                      <div className="setor-card-name">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
@@ -831,20 +865,22 @@ export default function RequisicaoApp() {
           {fase === "pin" && setorKey && (
             <>
               <button className="back-btn" onClick={voltarPin}>← Voltar</button>
-              <PinScreen
-                setor={ALL_SETORES[setorKey]}
-                setorKey={setorKey}
-                mode="login"
-                onSuccess={onPinSuccess}
-              />
+              {sectorObj && (
+                <PinScreen
+                  setor={setor}
+                  setorKey={setorKey}
+                  mode="login"
+                  onSuccess={onPinSuccess}
+                />
+              )}
             </>
           )}
 
           {/* Formulário / Histórico */}
           {fase === "form" && setor && (
             <>
-              {subTab === "form" && <FormRequisicao setorKey={setorKey} setor={setor} onBack={() => {}} toast={toast}/>}
-              {subTab === "hist" && <HistoricoRequisicoes setorKey={setorKey} setor={setor}/>}
+              {subTab === "form" && <FormRequisicao setorKey={setorKey} setor={setor} onBack={() => { }} toast={toast} />}
+              {subTab === "hist" && <HistoricoRequisicoes setorKey={setorKey} setor={setor} />}
             </>
           )}
 
@@ -861,7 +897,7 @@ export default function RequisicaoApp() {
         />
       )}
 
-      <ToastEl toasts={toasts}/>
+      <ToastEl toasts={toasts} />
     </>
   );
 }

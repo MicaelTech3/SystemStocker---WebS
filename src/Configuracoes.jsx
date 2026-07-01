@@ -6,41 +6,28 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getApps, initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import {
   getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc,
   query, where, updateDoc, serverTimestamp, getDoc,
 } from "firebase/firestore";
 
 const _cfg = {
-  apiKey: "AIzaSyBH3hxzhFe1IWyIO58wE2kcnL1lpxBy8ZM",
-  authDomain: "sytemstock.firebaseapp.com",
-  projectId: "sytemstock",
-  storageBucket: "sytemstock.firebasestorage.app",
-  messagingSenderId: "643733507908",
-  appId: "1:643733507908:web:1d3bce112d337534799111",
+  apiKey: "AIzaSyDSG7bfNh1oG1NNKS0Bgzjen4AdgF2APss",
+  authDomain: "systemstocker.firebaseapp.com",
+  projectId: "systemstocker",
+  storageBucket: "systemstocker.firebasestorage.app",
+  messagingSenderId: "934422043959",
+  appId: "1:934422043959:web:7b8dd513e85834dc598eb2",
+  measurementId: "G-BQ5H5ZS815"
 };
 const _app = getApps().length ? getApps()[0] : initializeApp(_cfg);
 const db = getFirestore(_app);
+const analytics = getAnalytics(_app);
 
 // ─── helpers ─────────────────────────────────────────────────
-// COLS: banco de PRODUTOS/CATEGORIAS (compartilhado entre exfood e bilheteria)
-const COLS = {
-  ti:"estoque_ti", exfood:"estoque_exfood", bilheteria:"estoque_exfood",
-  limpeza:"estoque_limpeza", ferramentas:"estoque_ferramentas",
-  fti:"estoque_ferramentas_ti", fmanutencao:"estoque_ferramentas_manutencao",
-};
-// COLS_PRIVATE: banco EXCLUSIVO do setor (requisições, config PIN, usuários)
-const COLS_PRIVATE = {
-  ti:"estoque_ti", exfood:"estoque_exfood", bilheteria:"estoque_bilheteria",
-  limpeza:"estoque_limpeza", ferramentas:"estoque_ferramentas",
-  fti:"estoque_ferramentas_ti", fmanutencao:"estoque_ferramentas_manutencao",
-};
-const LABELS = {
-  ti:"TI", exfood:"X-food", bilheteria:"Bilheteria", limpeza:"Limpeza",
-  ferramentas:"Ferramentas", fti:"Ferramentas TI", fmanutencao:"Manutenção",
-};
-const getCol = (setor, type) => `${COLS[setor]}_${type}`;
-const getColPrivate = (setor, type) => `${COLS_PRIVATE[setor]}_${type}`;
+const getCol = (setor, type) => `estoque_${setor}_${type}`;
+const getColPrivate = (setor, type) => `estoque_${setor}_${type}`;
 const DEFAULT_THRESH = { baixo: 5, medio: 15 };
 
 // ─── ícones inline ───────────────────────────────────────────
@@ -272,6 +259,7 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
   const [nomeCat, setNomeCat]   = useState("");
   const [nomeProd, setNomeProd] = useState("");
   const [catProd, setCatProd]   = useState("");
+  const [precoVenda, setPrecoVenda] = useState("");
 
   const [localThresh, setLocalThresh] = useState(thresh || DEFAULT_THRESH);
   const [savingThresh, setSavingThresh] = useState(false);
@@ -280,6 +268,7 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
   const [editCatVal, setEditCatVal] = useState("");
   const [editProdId, setEditProdId] = useState(null);
   const [editProdVal, setEditProdVal] = useState("");
+  const [editProdPreco, setEditProdPreco] = useState("");
 
   const [searchCat, setSearchCat]   = useState("");
   const [searchProd, setSearchProd] = useState("");
@@ -292,17 +281,53 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
   const catItemRefs  = useRef({});
   const prodItemRefs = useRef({});
 
+  const [modoLoja, setModoLoja] = useState(false);
+  const [fluxoLoja, setFluxoLoja] = useState("estoque");
+  const [savingLoja, setSavingLoja] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [sc, sp] = await Promise.all([
+      const colLojaCfg = _getCol(setor, "config");
+      const [sc, sp, lojaSnap] = await Promise.all([
         getDocs(collection(_db, colCat)),
         getDocs(collection(_db, colPadrao)),
+        getDoc(doc(_db, colLojaCfg, "loja_config"))
       ]);
       setCats(sc.docs.map(d => ({ id: d.id, ...d.data() })));
       setProds(sp.docs.map(d => ({ id: d.id, ...d.data() })));
+      if (lojaSnap.exists()) {
+        const data = lojaSnap.data();
+        setModoLoja(data.modoLoja || false);
+        setFluxoLoja(data.fluxoLoja || "estoque");
+      } else {
+        setModoLoja(false);
+        setFluxoLoja("estoque");
+      }
     } catch (e) { addToast("Erro: " + e.message, "error"); }
     finally { setLoading(false); }
+  };
+
+  const saveLojaConfig = async (newModo, newFluxo) => {
+    setSavingLoja(true);
+    try {
+      const colLojaCfg = _getCol(setor, "config");
+      await setDoc(doc(_db, colLojaCfg, "loja_config"), {
+        modoLoja: newModo,
+        fluxoLoja: newFluxo,
+        updatedAt: new Date().toISOString()
+      });
+      setModoLoja(newModo);
+      setFluxoLoja(newFluxo);
+      addToast("Configuração da Loja salva!", "success");
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new Event("lojaConfigChanged"));
+      }
+    } catch (e) {
+      addToast("Erro ao salvar configuração da loja: " + e.message, "error");
+    } finally {
+      setSavingLoja(false);
+    }
   };
 
   useEffect(() => { load(); setLocalThresh(thresh || DEFAULT_THRESH); }, [setor, thresh]);
@@ -348,36 +373,52 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
       addToast(`Renomeada para "${novo}"`, "success"); setEditCatId(null); load();
     } catch (e) { addToast("Erro: " + e.message, "error"); }
   };
-
   const addProd = async () => {
     if (!nomeProd.trim() || !catProd) { addToast("Preencha nome e categoria.", "error"); return; }
     if (dupProd) { addToast(`"${dupProd.nome}" já existe.`, "error"); return; }
+    if (modoLoja && (!precoVenda || isNaN(parseFloat(precoVenda)) || parseFloat(precoVenda) < 0)) { addToast("Informe um valor unitário válido (Loja ativa).", "error"); return; }
     try {
-      await addDoc(collection(_db, colPadrao), { nome: nomeProd.trim(), categoria: catProd, criadoEm: new Date().toISOString() });
+      const prodData = { nome: nomeProd.trim(), categoria: catProd, criadoEm: new Date().toISOString() };
+      if (precoVenda !== "" && !isNaN(parseFloat(precoVenda))) {
+        prodData.precoVenda = parseFloat(precoVenda);
+      }
+      await addDoc(collection(_db, colPadrao), prodData);
       if (registrarLog) await registrarLog(setor, "config", { descricao: `Produto criado: ${nomeProd.trim()}`, usuario: user.email });
-      addToast(`"${nomeProd.trim()}" criado!`, "success"); setNomeProd(""); setDupProd(null); load();
+      addToast(`"${nomeProd.trim()}" criado!`, "success"); setNomeProd(""); setPrecoVenda(""); setDupProd(null); load();
     } catch (e) { addToast("Erro: " + e.message, "error"); }
   };
+
 
   const delProd = async (p) => {
     if (!confirm(`Excluir "${p.nome}"?`)) return;
     try { await deleteDoc(doc(_db, colPadrao, p.id)); addToast("Removido.", "success"); load(); }
     catch (e) { addToast("Erro: " + e.message, "error"); }
   };
-
   const saveProd = async (p) => {
     const novo = editProdVal.trim();
-    if (!novo || novo === p.nome) { setEditProdId(null); return; }
-    const dup = checkEditProdDup(novo, p.id);
-    if (dup) { addToast(`"${dup.nome}" já existe.`, "error"); return; }
+    const novoPreco = editProdPreco.trim();
+    if (!novo) { addToast("Nome do produto não pode ser vazio.", "error"); return; }
+    if (modoLoja && (!novoPreco || isNaN(parseFloat(novoPreco)) || parseFloat(novoPreco) < 0)) { addToast("Informe um valor unitário válido (Loja ativa).", "error"); return; }
+    
+    if (novo !== p.nome) {
+      const dup = checkEditProdDup(novo, p.id);
+      if (dup) { addToast(`"${dup.nome}" já existe.`, "error"); return; }
+    }
+
     try {
-      await updateDoc(doc(_db, colPadrao, p.id), { nome: novo });
+      const isPrecoValido = novoPreco !== "" && !isNaN(parseFloat(novoPreco));
+      const precoFinal = isPrecoValido ? parseFloat(novoPreco) : null;
+      
+      await updateDoc(doc(_db, colPadrao, p.id), { nome: novo, precoVenda: precoFinal });
+      
       const sn = await getDocs(query(collection(_db, colEst), where("nome", "==", p.nome)));
-      await Promise.all(sn.docs.map(d => updateDoc(doc(_db, colEst, d.id), { nome: novo })));
-      if (registrarLog) await registrarLog(setor, "config", { descricao: `Produto: "${p.nome}"→"${novo}"`, usuario: user.email });
-      addToast(`Renomeado para "${novo}"`, "success"); setEditProdId(null); load();
+      await Promise.all(sn.docs.map(d => updateDoc(doc(_db, colEst, d.id), { nome: novo, precoVenda: precoFinal })));
+      
+      if (registrarLog) await registrarLog(setor, "config", { descricao: `Produto: "${p.nome}" (R$ ${(p.precoVenda || 0)}) → "${novo}" (R$ ${(precoFinal || 0)})`, usuario: user.email });
+      addToast(`Produto "${novo}" atualizado!`, "success"); setEditProdId(null); load();
     } catch (e) { addToast("Erro: " + e.message, "error"); }
   };
+
 
   const saveThresh = async () => {
     if (localThresh.baixo >= localThresh.medio) { addToast("'Baixo' deve ser menor que 'Médio'.", "error"); return; }
@@ -399,7 +440,7 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
 
   if (loading) return <div className="empty"><span className="spinner" /></div>;
 
-  const s = resolveSetor ? resolveSetor(setor) : { label: LABELS[setor] || setor };
+  const s = resolveSetor ? resolveSetor(setor) : { label: setor };
 
   const InlineEdit = ({ id, val, setId, setVal, onSave, checkDup, onCancel }) => {
     const dup = checkDup(val, id);
@@ -413,10 +454,34 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
           <button className="btn-icon-sm" style={{ borderColor:"var(--success)",color:"var(--success)" }} onClick={onSave} disabled={!!dup}><IcoCheck /></button>
           <button className="btn-icon-sm" onClick={onCancel}><IcoX /></button>
         </div>
+      </div>
+    );
+  };
+
+  const InlineEditProd = ({ id, name, setName, price, setPrice, onSave, checkDup, onCancel }) => {
+    const dup = checkDup(name, id);
+    return (
+      <div style={{ flex: 1, marginRight: 6 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <input autoFocus value={name} onChange={e => setName(e.target.value)}
+            placeholder="Nome do produto..."
+            onKeyDown={e => { if(e.key==="Enter") onSave(); if(e.key==="Escape") onCancel(); }}
+            style={{ flex:2, background:"var(--surface2)", border:`1px solid ${dup?"var(--warn)":"var(--accent)"}`, color:"var(--text)", padding:"7px 10px", fontFamily:"var(--mono)", fontSize:13, outline:"none", borderRadius:"var(--r)" }}
+          />
+          <input type="number" step="0.01" min="0" placeholder="R$ Preço..." value={price} onChange={e => setPrice(e.target.value)}
+            onKeyDown={e => { if(e.key==="Enter") onSave(); if(e.key==="Escape") onCancel(); }}
+            style={{ width:100, background:"var(--surface2)", border:"1px solid var(--accent)", color:"var(--text)", padding:"7px 10px", fontFamily:"var(--mono)", fontSize:13, outline:"none", borderRadius:"var(--r)" }}
+          />
+          <button className="btn-icon-sm" style={{ borderColor:"var(--success)",color:"var(--success)" }} onClick={onSave} disabled={!!dup}><IcoCheck /></button>
+          <button className="btn-icon-sm" onClick={onCancel}><IcoX /></button>
+        </div>
         {dup && <div style={{ fontFamily:"var(--mono)",fontSize:10,color:"var(--warn)",marginTop:5 }}>Nome já existe</div>}
       </div>
     );
   };
+
+
+
 
   return (
     <div>
@@ -439,6 +504,70 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
 
       {configSubTab === "geral" && (
         <>
+          {/* Módulo Loja & Caixa */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              MÓDULO LOJA & CAIXA (POS)
+            </div>
+            <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 14 }}>
+              Habilite a frente de caixa para vendas diretas ao cliente final, puxando itens do estoque.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 13 }}>Habilitar Frente de Caixa</span>
+                <button
+                  className={"btn " + (modoLoja ? "btn-accent" : "btn-outline")}
+                  style={{ fontSize: 11, padding: "6px 12px" }}
+                  onClick={() => saveLojaConfig(!modoLoja, fluxoLoja)}
+                  disabled={savingLoja}
+                >
+                  {modoLoja ? "ATIVADO" : "DESATIVADO"}
+                </button>
+              </div>
+
+              {modoLoja && (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)" }}>Origem da Saída das Vendas</label>
+                    <select
+                      className="form-select"
+                      value={fluxoLoja}
+                      onChange={e => saveLojaConfig(modoLoja, e.target.value)}
+                      disabled={savingLoja}
+                      style={{ fontSize: 12, padding: "8px 10px" }}
+                    >
+                      <option value="estoque">Apenas Estoque (Saída direta do Estoque principal)</option>
+                      <option value="loja">Estoque + Loja (Controle de Estoque e Loja separados)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ background: "var(--surface2)", padding: 12, borderRadius: "var(--r)", border: "1px solid var(--border)", marginTop: 4 }}>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 6 }}>LINK ÚNICO DO CAIXA</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${window.location.origin}/caixa?empresa=${user.email}`}
+                        style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--border2)", padding: "8px 10px", borderRadius: "var(--r)", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", outline: "none" }}
+                      />
+                      <button
+                        className="btn btn-outline"
+                        style={{ fontSize: 10, padding: "8px 12px" }}
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/caixa?empresa=${user.email}`);
+                          addToast("Link copiado para a área de transferência!", "success");
+                        }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* Thresholds */}
           <div className="card">
             <div className="card-title">NÍVEIS DE ESTOQUE</div>
@@ -508,7 +637,7 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
 
           {/* Produtos padrão */}
           <div className="card">
-            <div className="card-title">PRODUTOS PADRÃO</div>
+            <div className="card-title">PRODUTOS PADRÃO{modoLoja && <span style={{ marginLeft:8,fontSize:10,color:"var(--accent)",fontFamily:"var(--mono)",fontWeight:400 }}>MODO LOJA — preço obrigatório</span>}</div>
             <div style={{ display:"flex",flexDirection:"column",gap:8,marginBottom:dupProd?8:10 }}>
               <select className="form-select" value={catProd} onChange={e=>setCatProd(e.target.value)}>
                 <option value="">Selecionar categoria...</option>
@@ -518,12 +647,16 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
                 <input className="form-input" placeholder="Nome do produto..." value={nomeProd}
                   onChange={e=>setNomeProd(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addProd()}
                   style={{ flex:1,borderColor:dupProd?"var(--warn)":undefined }}/>
+                <input className="form-input" type="number" min="0" step="0.01"
+                  placeholder={modoLoja ? "R$ Preço *" : "R$ Preço (opcional)"}
+                  value={precoVenda} onChange={e=>setPrecoVenda(e.target.value)}
+                  style={{ width:150,flexShrink:0 }}/>
                 <button className="btn btn-accent" onClick={addProd} disabled={!!dupProd} style={{ padding:"12px 16px",opacity:dupProd?.4:1 }}><IcoPlus /></button>
               </div>
             </div>
             {dupProd && <DupAlert tipo="prod" existente={dupProd} onDismiss={()=>setNomeProd("")}
               onScrollTo={()=>scrollTo(dupProd.id,prodItemRefs,setHighlightProd)}
-              onEdit={()=>{scrollTo(dupProd.id,prodItemRefs,setHighlightProd);setTimeout(()=>{setEditProdId(dupProd.id);setEditProdVal(dupProd.nome);},300);setNomeProd("");}}
+              onEdit={()=>{scrollTo(dupProd.id,prodItemRefs,setHighlightProd);setTimeout(()=>{setEditProdId(dupProd.id);setEditProdVal(dupProd.nome);setEditProdPreco(String(dupProd.precoVenda??""));},300);setNomeProd("");}}
               onDelete={()=>{delProd(dupProd);setNomeProd("");}}/>}
             <SearchBox value={searchProd} onChange={setSearchProd} placeholder="Filtrar produtos..." />
             {(() => {
@@ -543,10 +676,13 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
                           <div key={p.id} ref={el=>prodItemRefs.current[p.id]=el}
                             style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",background:highlightProd===p.id?"rgba(250,204,21,.08)":"var(--surface2)",border:highlightProd===p.id?"1px solid var(--warn)":"1px solid var(--border)",borderRadius:"var(--r)",marginBottom:4,transition:"all .3s" }}>
                             {editProdId===p.id
-                              ? <InlineEdit id={p.id} val={editProdVal} setId={setEditProdId} setVal={setEditProdVal} onSave={()=>saveProd(p)} checkDup={checkEditProdDup} onCancel={()=>setEditProdId(null)}/>
-                              : <span style={{ fontFamily:"var(--mono)",fontSize:12,flex:1 }}>{p.nome}</span>}
+                              ? <InlineEditProd id={p.id} name={editProdVal} setName={setEditProdVal} price={editProdPreco} setPrice={setEditProdPreco} onSave={()=>saveProd(p)} checkDup={checkEditProdDup} onCancel={()=>setEditProdId(null)}/>
+                              : <>
+                                  <span style={{ fontFamily:"var(--mono)",fontSize:12,flex:1 }}>{p.nome}</span>
+                                  {p.precoVenda!=null && <span style={{ fontFamily:"var(--mono)",fontSize:11,color:"var(--accent)",marginRight:8 }}>R$ {Number(p.precoVenda).toFixed(2)}</span>}
+                                </>}
                             {editProdId!==p.id && <div style={{ display:"flex",gap:4 }}>
-                              <button className="btn-icon-sm edit-btn" onClick={()=>{setEditProdId(p.id);setEditProdVal(p.nome);}}><IcoEdit /></button>
+                              <button className="btn-icon-sm edit-btn" onClick={()=>{setEditProdId(p.id);setEditProdVal(p.nome);setEditProdPreco(String(p.precoVenda??""));}}><IcoEdit /></button>
                               <button className="btn-icon-sm" onClick={()=>delProd(p)}><IcoTrash /></button>
                             </div>}
                           </div>
