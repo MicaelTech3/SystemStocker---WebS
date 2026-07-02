@@ -726,6 +726,46 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
       const r = await signInWithEmailAndPassword(auth, email, pw);
       localStorage.setItem("saved_email", email);
       localStorage.setItem("saved_password", pw);
+      
+      // Garante que o documento do usuario existe no Firestore e tem a senha correta
+      try {
+        const userRef = doc(db, "users", email);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            nomeEmpresa: email.split("@")[0].toUpperCase(),
+            senha: pw,
+            googleRegistered: false,
+            createdAt: new Date().toISOString()
+          });
+          // Inicializa setor Geral se nao existir
+          const sectorRef = doc(db, "users", email, "setores", "geral");
+          const sectorSnap = await getDoc(sectorRef);
+          if (!sectorSnap.exists()) {
+            await setDoc(sectorRef, {
+              id: "geral",
+              label: "Geral",
+              color: "#f97316",
+              iconName: "package",
+              createdAt: new Date().toISOString()
+            });
+            await setDoc(doc(db, `users/${email}/setores/geral/config`, "requisicao_config"), {
+              pin: "1234",
+              updatedAt: new Date().toISOString()
+            });
+            await setDoc(doc(db, `users/${email}/setores/geral/config`, "thresholds"), {
+              baixo: 5,
+              medio: 15,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        } else {
+          await updateDoc(userRef, { senha: pw });
+        }
+      } catch (dbErr) {
+        console.warn("Erro ao sincronizar senha no Firestore:", dbErr);
+      }
+      
       onLogin(r.user);
     }
     catch (ex) { setErr({ "auth/invalid-credential": "Email ou senha incorretos.", "auth/too-many-requests": "Muitas tentativas." }[ex.code] || "Erro: " + ex.message); }
@@ -1094,7 +1134,17 @@ function Entrada({ setor, onRefresh, addToast, user }) {
         const novosBarcodes = barcode && !existente.barcodes?.includes(barcode) ? [...(existente.barcodes || []), barcode] : (existente.barcodes || []);
         await updateDoc(doc(db, colEst, existente.id), { quantidade: increment(qtdNum), ...(novosBarcodes.length > 0 && { barcodes: novosBarcodes }), ultimaEntrada: new Date().toISOString() });
       } else {
-        await addDoc(collection(db, colEst), { nome: prodSel, categoria: categoriaFinal, barcodes: barcode ? [barcode] : [], quantidade: qtdNum, criadoEm: new Date().toISOString(), ultimaEntrada: new Date().toISOString() });
+        const templateProd = padrao.find(p => p.nome === prodSel);
+        const precoVendaFinal = templateProd && templateProd.precoVenda !== undefined ? templateProd.precoVenda : 0;
+        await addDoc(collection(db, colEst), {
+          nome: prodSel,
+          categoria: categoriaFinal,
+          barcodes: barcode ? [barcode] : [],
+          quantidade: qtdNum,
+          precoVenda: Number(precoVendaFinal) || 0,
+          criadoEm: new Date().toISOString(),
+          ultimaEntrada: new Date().toISOString()
+        });
       }
       await registrarLog(setor, "entrada", { produto: prodSel, categoria: categoriaFinal, quantidade: qtdNum, barcode: barcode || "—", usuario: user.email });
       addToast(`${qtdNum}x "${prodSel}" registrado!`, "success");
@@ -1171,7 +1221,22 @@ function Saida({ setor, onRefresh, addToast, user }) {
 
   const doAuth = async (e) => {
     e.preventDefault(); setLoading(true);
-    try { await signInWithEmailAndPassword(auth, user.email, pw); setAuthOk(true); addToast("Autorizado.", "success"); }
+    try {
+      // 1. Verificar contra a senha salva no documento de usuario no Firestore
+      const userRef = doc(db, "users", user.email);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists() && userSnap.data().senha === pw) {
+        setAuthOk(true);
+        addToast("Autorizado.", "success");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fallback para autenticacao do Firebase Auth
+      await signInWithEmailAndPassword(auth, user.email, pw);
+      setAuthOk(true);
+      addToast("Autorizado.", "success");
+    }
     catch { addToast("Senha incorreta.", "error"); } finally { setLoading(false); }
   };
   const entrarSemBarras = async () => {

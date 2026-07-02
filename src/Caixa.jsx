@@ -184,7 +184,7 @@ const css = `
   .scan-status.err { color:var(--danger); }
 
   /* Inline scanner */
-  .inline-scanner { position:relative; width:100%; height:140px; background:#000; border-radius:var(--r); overflow:hidden; border:2px solid var(--accent); margin-bottom:12px; }
+  .inline-scanner { position:relative; width:100%; height:320px; min-height:320px; background:#000; border-radius:var(--r); overflow:hidden; border:2px solid var(--accent); margin-bottom:12px; }
   .inline-scanner-video { width:100%; height:100%; object-fit:cover; }
   .inline-scan-frame { position:absolute; width:80%; height:80%; top:10%; left:10%; border:1.5px dashed var(--accent); }
   .inline-scan-status { position:absolute; bottom:6px; left:6px; right:6px; background:rgba(0,0,0,0.75); color:#fff; padding:2px 6px; font-family:var(--mono); fontSize:9px; border-radius:3px; text-align:center; }
@@ -201,6 +201,24 @@ const css = `
   
   .badge-fiel { background:rgba(16,185,129,0.12); border:1px solid var(--success); color:var(--success); padding:2px 6px; font-size:9px; border-radius:3px; font-family:var(--mono); font-weight:600; }
   .badge-infiel { background:rgba(120,113,108,0.12); border:1px solid var(--text-dim); color:var(--text-dim); padding:2px 6px; font-size:9px; border-radius:3px; font-family:var(--mono); }
+
+  .setores-layout { display: flex; flex: 1; height: calc(100vh - 52px); overflow: hidden; }
+  .setores-sidebar { width: 340px; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; padding: 20px; overflow-y: auto; z-index: 5; }
+  .setores-grid-wrap { flex: 1; padding: 30px; overflow-y: auto; position: relative; z-index: 2; }
+  
+  .sidebar-section-title { font-family: var(--display); font-size: 18px; color: var(--accent); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; letter-spacing: 1px; }
+  .sidebar-field-group { margin-bottom: 12px; }
+  .sidebar-field-label { display: block; font-size: 10px; font-family: var(--mono); color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; }
+  .sidebar-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); padding: 8px 10px; border-radius: var(--r); color: var(--text); font-family: var(--sans); font-size: 13px; outline: none; }
+  .sidebar-input:focus { border-color: var(--accent); }
+  
+  .link-box { background: var(--surface2); border: 1px solid var(--border); padding: 10px; border-radius: var(--r); font-family: var(--mono); font-size: 11px; color: var(--text-dim); word-break: break-all; margin-bottom: 10px; }
+  
+  @media(max-width:768px) {
+    .setores-layout { flex-direction: column !important; height: auto !important; overflow: visible !important; }
+    .setores-sidebar { display: none !important; }
+    .setores-grid-wrap { padding: 20px !important; }
+  }
 `;
 
 export default function Caixa() {
@@ -219,6 +237,170 @@ export default function Caixa() {
   const [clientName, setClientName] = useState("");
   const [payMethod, setPayMethod] = useState("Dinheiro");
   const [toasts, setToasts] = useState([]);
+
+  // Account settings state
+  const [empresaDoc, setEmpresaDoc] = useState(null);
+  const [editEmpresaNome, setEditEmpresaNome] = useState("");
+  const [editEmpresaNumero, setEditEmpresaNumero] = useState("");
+  const [editEmpresaSenha, setEditEmpresaSenha] = useState("");
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  // Safe pricing parsing helper
+  const parsePrice = (val) => {
+    if (val === undefined || val === null || val === "") return 0;
+    const str = String(val).replace(",", ".");
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Sync profile settings in real-time
+  useEffect(() => {
+    if (empresaId && empresaId !== "default") {
+      const unsub = onSnapshot(doc(db, "users", empresaId), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setEmpresaDoc(data);
+          setEditEmpresaNome(data.nomeEmpresa || "");
+          setEditEmpresaNumero(data.numero || "");
+          setEditEmpresaSenha(data.senha || "");
+        }
+      });
+      return unsub;
+    }
+  }, []);
+
+  // On mount, auto-login if sector and pin are cached
+  useEffect(() => {
+    if (sectors.length > 0) {
+      const cachedSectorId = localStorage.getItem("caixa_cached_sector_id");
+      const cachedPin = localStorage.getItem("caixa_cached_pin");
+      if (cachedSectorId && cachedPin) {
+        const sector = sectors.find(s => s.id === cachedSectorId);
+        if (sector) {
+          (async () => {
+            try {
+              const docSnap = await getDoc(doc(db, getCol(cachedSectorId, "config"), "requisicao_config"));
+              const realPin = docSnap.exists() ? (docSnap.data().pin || "") : "";
+              if (!realPin || cachedPin === realPin) {
+                setSelectedSector(sector);
+                setFase("pos");
+              }
+            } catch (e) {
+              console.error("Auto-login error:", e);
+            }
+          })();
+        }
+      }
+    }
+  }, [sectors]);
+
+  const handleSaveAccountConfig = async (e) => {
+    e.preventDefault();
+    if (!editEmpresaNome.trim()) {
+      addToast("Nome da empresa é obrigatório.", "error");
+      return;
+    }
+    if (editEmpresaSenha.length < 6) {
+      addToast("A senha deve ter pelo menos 6 caracteres.", "error");
+      return;
+    }
+    setSavingConfig(true);
+    try {
+      await setDoc(doc(db, "users", empresaId), {
+        ...empresaDoc,
+        nomeEmpresa: editEmpresaNome.trim(),
+        numero: editEmpresaNumero.trim(),
+        senha: editEmpresaSenha
+      }, { merge: true });
+      addToast("Configurações da conta salvas!", "success");
+    } catch (err) {
+      addToast("Erro ao salvar: " + err.message, "error");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleResetAccount = async () => {
+    const pwConfirm = prompt("ATENÇÃO: Isso irá apagar permanentemente todos os setores, produtos, categorias, fiadores, registros de caixa e logs. Para confirmar, digite a senha da conta:");
+    if (!pwConfirm) return;
+    if (pwConfirm !== (empresaDoc?.senha || "")) {
+      addToast("Senha incorreta! Operação cancelada.", "error");
+      return;
+    }
+    if (!confirm("Tem certeza absoluta? Essa ação não pode ser desfeita e apagará TODOS os dados da sua empresa.")) return;
+
+    setSavingConfig(true);
+    try {
+      addToast("Limpando dados...", "info");
+      const sectorSnap = await getDocs(collection(db, "users", empresaId, "setores"));
+      for (const sectorDoc of sectorSnap.docs) {
+        const secId = sectorDoc.id;
+        const deleteCollection = async (type) => {
+          const colRef = collection(db, "users", empresaId, "setores", secId, type);
+          const snap = await getDocs(colRef);
+          await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+        };
+        await deleteCollection("produtos");
+        await deleteCollection("categorias");
+        await deleteCollection("fiadores");
+        await deleteCollection("vendas");
+        await deleteCollection("log");
+
+        await deleteDoc(doc(db, `users/${empresaId}/setores/${secId}/config`, "requisicao_config"));
+        await deleteDoc(doc(db, `users/${empresaId}/setores/${secId}/config`, "thresholds"));
+        await deleteDoc(doc(db, `users/${empresaId}/setores/${secId}/config`, "loja_config"));
+        await deleteDoc(doc(db, `users/${empresaId}/setores/${secId}/caixa_status`, "atual"));
+
+        await deleteDoc(sectorDoc.ref);
+      }
+
+      // Recreate default sector "geral"
+      const cleanId = "geral";
+      await setDoc(doc(db, "users", empresaId, "setores", cleanId), {
+        id: cleanId,
+        label: "Geral",
+        color: "#f97316",
+        iconName: "package",
+        createdAt: new Date().toISOString()
+      });
+      await setDoc(doc(db, `users/${empresaId}/setores/${cleanId}/config`, "requisicao_config"), {
+        pin: "1234",
+        updatedAt: new Date().toISOString()
+      });
+      await setDoc(doc(db, `users/${empresaId}/setores/${cleanId}/config`, "thresholds"), {
+        baixo: 5,
+        medio: 15,
+        updatedAt: new Date().toISOString()
+      });
+
+      addToast("Conta resetada com sucesso!", "success");
+      // Reload sector list
+      const snap = await getDocs(collection(db, "users", empresaId, "setores"));
+      setSectors(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      addToast("Erro ao resetar conta: " + err.message, "error");
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    const shareUrl = window.location.origin + "/caixa?empresa=" + encodeURIComponent(empresaId);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Caixa POS - " + (empresaDoc?.nomeEmpresa || "SystemStocker"),
+          url: shareUrl
+        });
+      } catch (e) {
+        navigator.clipboard.writeText(shareUrl);
+        addToast("Link copiado para a área de transferência!", "success");
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      addToast("Link copiado para a área de transferência!", "success");
+    }
+  };
   const [modoLoja, setModoLoja] = useState(false);
   const [fluxoLoja, setFluxoLoja] = useState("estoque");
   const [showClosure, setShowClosure] = useState(false);
@@ -653,6 +835,8 @@ export default function Caixa() {
         const realPin = docSnap.exists() ? (docSnap.data().pin || "") : "";
         if (!realPin || val === realPin) {
           addToast(`Acessando Caixa do setor ${selectedSector.label}...`, "success");
+          localStorage.setItem("caixa_cached_sector_id", selectedSector.id);
+          localStorage.setItem("caixa_cached_pin", val);
           setFase("pos");
           setPinValue("");
         } else {
@@ -744,7 +928,7 @@ export default function Caixa() {
     setCart(cart.map(i => i.id === id ? { ...i, quantity: newQty } : i));
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.quantity * (Number(item.precoVenda) || 0)), 0);
+  const cartTotal = cart.reduce((sum, item) => sum + (item.quantity * parsePrice(item.precoVenda)), 0);
 
   // Barcode / Search submit
   const handleBarcodeSubmit = (e) => {
@@ -791,13 +975,16 @@ export default function Caixa() {
       // Save Sale document
       const saleData = {
         cliente: clientFinalName,
-        itens: cart.map(i => ({
-          id: i.id,
-          nome: i.nome,
-          quantity: i.quantity,
-          precoVenda: Number(i.precoVenda) || 0,
-          subtotal: i.quantity * (Number(i.precoVenda) || 0)
-        })),
+        itens: cart.map(i => {
+          const itemPrice = parsePrice(i.precoVenda);
+          return {
+            id: i.id,
+            nome: i.nome,
+            quantity: i.quantity,
+            precoVenda: itemPrice,
+            subtotal: i.quantity * itemPrice
+          };
+        }),
         total: cartTotal,
         metodoPagamento: payMethod,
         timestamp: new Date().toISOString(),
@@ -993,6 +1180,8 @@ export default function Caixa() {
   // Exit POS
   const handleLogout = () => {
     stopScanner();
+    localStorage.removeItem("caixa_cached_sector_id");
+    localStorage.removeItem("caixa_cached_pin");
     setFase("setores");
     setSelectedSector(null);
     setCart([]);
