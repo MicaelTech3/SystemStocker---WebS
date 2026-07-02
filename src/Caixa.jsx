@@ -325,12 +325,12 @@ export default function Caixa() {
     }
   }, [products]);
 
+  // ─── iOS/iPhone Camera Scanner ────────────────────────────────────────────────
+  // No iOS Safari é OBRIGATÓRIO pedir getUserMedia ANTES de usar Html5Qrcode,
+  // e enumerar câmeras somente depois da permissão. Sem isso, iPhone bloqueia.
   const openInlineScanner = useCallback(async () => {
     if (!scannerActive) return;
-    
-    if (scannerStateRef.current === "STARTING" || scannerStateRef.current === "RUNNING") {
-      return;
-    }
+    if (scannerStateRef.current === "STARTING" || scannerStateRef.current === "RUNNING") return;
 
     scannerStateRef.current = "STARTING";
     setScanStatus({ msg: "Iniciando câmera...", t: "" });
@@ -339,11 +339,45 @@ export default function Caixa() {
       try {
         const element = document.getElementById("reader");
         if (!element) {
-          setScanStatus({ msg: "Elemento de visualização não encontrado", t: "err" });
+          setScanStatus({ msg: "Elemento não encontrado", t: "err" });
           scannerStateRef.current = "IDLE";
           return;
         }
 
+        // PASSO 1: Solicitar permissão explícita (CRÍTICO para iOS/Safari)
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          try {
+            const tempStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: "environment" } }
+            });
+            tempStream.getTracks().forEach(t => t.stop());
+          } catch (permErr) {
+            const permMsg = String(permErr);
+            if (permMsg.includes("NotAllowedError") || permMsg.includes("denied")) {
+              setScanStatus({
+                msg: "❌ Câmera bloqueada. Vá em Ajustes > Safari > Câmera e selecione 'Permitir'.",
+                t: "err"
+              });
+              scannerStateRef.current = "IDLE";
+              return;
+            }
+            console.warn("Aviso permissão câmera:", permErr);
+          }
+        }
+
+        if (scannerStateRef.current === "STOPPING" || scannerStateRef.current === "IDLE") {
+          scannerStateRef.current = "IDLE";
+          return;
+        }
+
+        // PASSO 2: Enumerar câmeras (funciona no iOS só DEPOIS da permissão)
+        let availableCameras = [];
+        try {
+          availableCameras = await window.Html5Qrcode.getCameras();
+          if (availableCameras && availableCameras.length > 0) setCameras(availableCameras);
+        } catch (e) { console.warn("Erro ao enumerar câmeras:", e); }
+
+        // PASSO 3: Criar instância
         const scannerInstance = new window.Html5Qrcode("reader");
         html5QrCodeRef.current = scannerInstance;
 
@@ -353,60 +387,75 @@ export default function Caixa() {
           return;
         }
 
-        const cameraIdOrFacing = selectedCameraId ? selectedCameraId : { facingMode: "environment" };
+        // PASSO 4: Determinar câmera a usar
+        let cameraConfig;
+        if (selectedCameraId) {
+          cameraConfig = selectedCameraId;
+        } else if (availableCameras.length > 0) {
+          const backCam = availableCameras.find(c =>
+            c.label && (
+              c.label.toLowerCase().includes("back") ||
+              c.label.toLowerCase().includes("rear") ||
+              c.label.toLowerCase().includes("traseira") ||
+              c.label.toLowerCase().includes("environment") ||
+              c.label.toLowerCase().includes("wide")
+            )
+          );
+          cameraConfig = backCam ? backCam.id : availableCameras[availableCameras.length - 1].id;
+        } else {
+          cameraConfig = { facingMode: "environment" };
+        }
 
-        await scannerInstance.start(
-          cameraIdOrFacing,
-          {
-            fps: 15,
-            qrbox: (width, height) => ({ width: Math.min(width * 0.9, 450), height: Math.min(height * 0.5, 120) }),
-            aspectRatio: 1.777778
-          },
-          (decodedText) => {
-            onBarcodeScan(decodedText);
-          },
-          (errorMessage) => {
-            // Quiet mode
+        const scanCfg = {
+          fps: 10,
+          qrbox: (width, height) => ({ width: Math.min(width * 0.85, 400), height: Math.min(height * 0.45, 110) }),
+          aspectRatio: 1.777778,
+          videoConstraints: typeof cameraConfig === "string"
+            ? { deviceId: { exact: cameraConfig } }
+            : { facingMode: { ideal: "environment" } }
+        };
+
+        const cb = (text) => onBarcodeScan(text);
+        const noop = () => {};
+
+        // PASSO 5: Iniciar com fallbacks
+        try {
+          await scannerInstance.start(cameraConfig, scanCfg, cb, noop);
+        } catch (startErr) {
+          console.warn("Câmera primária falhou, fallback:", startErr);
+          try {
+            await scannerInstance.start({ facingMode: "environment" }, { ...scanCfg, videoConstraints: { facingMode: { ideal: "environment" } } }, cb, noop);
+          } catch {
+            const fb = availableCameras.length > 0 ? availableCameras[0].id : { facingMode: "user" };
+            await scannerInstance.start(fb, { ...scanCfg, videoConstraints: {} }, cb, noop);
           }
-        );
+        }
 
         scannerStateRef.current = "RUNNING";
-        setScanStatus({ msg: "Aponte para o código de barras", t: "ok" });
-
-        try {
-          const devices = await window.Html5Qrcode.getCameras();
-          if (devices && devices.length > 0) {
-            setCameras(devices);
-          }
-        } catch (e) {
-          console.warn("Erro ao obter cameras:", e);
-        }
+        setScanStatus({ msg: "📷 Aponte para o código de barras", t: "ok" });
 
       } catch (err) {
         html5QrCodeRef.current = null;
         scannerStateRef.current = "IDLE";
         const msg = String(err);
-        if (msg.includes("NotAllowedError") || msg.includes("Permission")) {
-          setScanStatus({ msg: "Permissão de câmera negada. Permita o acesso nas configurações do navegador.", t: "err" });
+        if (msg.includes("NotAllowedError") || msg.includes("Permission") || msg.includes("denied")) {
+          setScanStatus({ msg: "❌ Permissão negada. Vá em Ajustes > Safari > Câmera e permita o acesso.", t: "err" });
+        } else if (msg.includes("NotFoundError") || msg.includes("DevicesNotFound")) {
+          setScanStatus({ msg: "❌ Nenhuma câmera encontrada.", t: "err" });
+        } else if (msg.includes("NotReadableError") || msg.includes("TrackStartError")) {
+          setScanStatus({ msg: "❌ Câmera em uso por outro app. Feche-o e tente novamente.", t: "err" });
         } else {
-          setScanStatus({ msg: "Câmera indisponível: " + msg, t: "err" });
+          setScanStatus({ msg: "❌ Câmera indisponível. Toque em 'Tentar novamente'.", t: "err" });
         }
+        console.error("Erro scanner:", err);
       }
     };
 
-    setTimeout(() => {
-      startCamera();
-    }, 200);
+    setTimeout(() => { startCamera(); }, 350);
   }, [scannerActive, onBarcodeScan, selectedCameraId]);
 
-  const openScanner = useCallback(async () => {
-    openInlineScanner();
-  }, [openInlineScanner]);
-
-  const closeScanner = useCallback(() => {
-    stopScanner(); setQtyModal(null);
-  }, [stopScanner]);
-
+  const openScanner = useCallback(async () => { openInlineScanner(); }, [openInlineScanner]);
+  const closeScanner = useCallback(() => { stopScanner(); setQtyModal(null); }, [stopScanner]);
   const confirmQty = () => {
     if (!qtyModal) return;
     addToCart({ ...qtyModal.product, _forceQty: parseInt(qtyInput) || 1 });

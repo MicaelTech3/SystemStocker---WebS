@@ -145,6 +145,12 @@ const styles = `
   .login-title { font-family:var(--display); font-size:48px; letter-spacing:5px; line-height:1; margin-bottom:2px; }
   .login-title span { color:var(--accent); }
   .login-sub { font-family:var(--mono); font-size:10px; color:var(--text-dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:36px; }
+  .onboarding-screen { min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg); position:relative; overflow:hidden; }
+  .onboarding-card { background:var(--surface); border:1px solid var(--border2); padding:40px 32px; width:100%; max-width:480px; position:relative; z-index:2; }
+  .onboarding-card::after { content:''; display:block; height:3px; background:linear-gradient(90deg,var(--accent),var(--success)); margin-top:40px; margin-left:-32px; width:calc(100% + 64px); }
+  .onboarding-title { font-family:var(--display); font-size:42px; letter-spacing:3px; line-height:1; margin-bottom:6px; }
+  .onboarding-title span { color:var(--success); }
+  .onboarding-sub { font-family:var(--mono); font-size:10px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:30px; }
   .setor-screen { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 16px; gap:32px; }
   .setor-heading { text-align:center; }
   .setor-heading h2 { font-family:var(--display); font-size:36px; letter-spacing:4px; margin-bottom:6px; }
@@ -159,11 +165,12 @@ const styles = `
   @media (max-width:900px) { .setor-cards { grid-template-columns:repeat(3,1fr); max-width:600px; } }
   @media (max-width:600px) { .setor-cards { grid-template-columns:repeat(2,1fr); max-width:440px; } }
   @media (max-width:400px) { .setor-cards { grid-template-columns:1fr; max-width:320px; } .setor-card { flex-direction:row; padding:18px; gap:14px; align-items:center; } }
+
   .ferr-sub-cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; max-width:500px; }
   @media (max-width:400px) { .ferr-sub-cards { grid-template-columns:1fr; } }
   .form-group { margin-bottom:14px; }
   .form-label { display:block; font-family:var(--mono); font-size:10px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:7px; }
-  .form-input,.form-select { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:13px 14px; font-family:var(--mono); font-size:14px; outline:none; transition:border-color .2s; border-radius:var(--r); -webkit-appearance:none; appearance:none; }
+  .form-input,.form-select { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:13px 14px; font-family:var(--mono); font-size:16px; outline:none; transition:border-color .2s; border-radius:var(--r); -webkit-appearance:none; appearance:none; }
   .form-input:focus,.form-select:focus { border-color:var(--accent); }
   .form-input:disabled,.form-select:disabled { opacity:.4; }
   .form-select { cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; }
@@ -186,7 +193,7 @@ const styles = `
   .btn-icon-sm:disabled { opacity:.4; cursor:not-allowed; }
   .btn-scan { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; padding:14px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:12px; cursor:pointer; border-radius:var(--r); transition:border-color .2s,color .2s; letter-spacing:.5px; -webkit-tap-highlight-color:transparent; }
   .btn-scan:hover,.btn-scan:active { border-color:var(--accent); color:var(--accent); }
-  .page-hd { margin-bottom:18px; }
+ .page-hd { margin-bottom:18px; }
   .page-title { font-family:var(--display); font-size:30px; letter-spacing:4px; line-height:1; }
   .page-sub { font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:3px; }
   .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
@@ -594,6 +601,114 @@ function SelectSearch({ value, onChange, options, placeholder = "Selecionar...",
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── GOOGLE ONBOARDING ───────────────────────────────────────
+function GoogleOnboardingScreen({ user, onComplete, onCancel }) {
+  const [empresa, setEmpresa] = useState("");
+  const [senha, setSenha] = useState("");
+  const [numero, setNumero] = useState("");
+  const [pais, setPais] = useState("Brasil");
+  const [idioma, setIdioma] = useState("pt");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!empresa.trim()) { setErr("Por favor, digite o nome da empresa."); return; }
+    if (senha.length < 6) { setErr("A senha deve conter pelo menos 6 caracteres."); return; }
+    if (!numero.trim()) { setErr("Por favor, digite um número de contato."); return; }
+
+    setLoading(true);
+    setErr("");
+    try {
+      await setDoc(doc(db, "users", user.email), {
+        nomeEmpresa: empresa.trim(),
+        senha: senha,
+        numero: numero.trim(),
+        pais: pais,
+        idioma: idioma,
+        googleRegistered: true,
+        createdAt: new Date().toISOString()
+      });
+
+      const cleanId = "geral";
+      await setDoc(doc(db, "users", user.email, "setores", cleanId), {
+        id: cleanId,
+        label: "Geral",
+        color: "#f97316",
+        iconName: "package",
+        pin: "1234",
+        createdAt: new Date().toISOString()
+      });
+
+      onComplete();
+    } catch (ex) {
+      setErr("Erro ao salvar cadastro: " + ex.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="onboarding-screen">
+      <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ top: "-15%", left: "-15%" }}></video>
+      <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ bottom: "-15%", right: "-15%", animationDelay: "-11s", width: "550px", height: "550px" }}></video>
+
+      <div className="onboarding-card" style={{ position: "relative", zIndex: 2 }}>
+        <div className="onboarding-title">SYSTEMSTOCKER<span>.</span></div>
+        <div className="onboarding-sub">Concluir Cadastro com Google</div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Nome da Empresa</label>
+            <input className="form-input" type="text" value={empresa} onChange={e => setEmpresa(e.target.value)} placeholder="Ex: Minha Empresa Ltda" required />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Senha de Acesso</label>
+            <input className="form-input" type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="Defina uma senha (mínimo 6 caracteres)" required />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Número de Telefone</label>
+            <input className="form-input" type="tel" value={numero} onChange={e => setNumero(e.target.value)} placeholder="Ex: (11) 99999-9999" required />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">País</label>
+              <select className="form-select" value={pais} onChange={e => setPais(e.target.value)}>
+                <option value="Brasil">Brasil</option>
+                <option value="Portugal">Portugal</option>
+                <option value="Angola">Angola</option>
+                <option value="Moçambique">Moçambique</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Idioma</label>
+              <select className="form-select" value={idioma} onChange={e => setIdioma(e.target.value)}>
+                <option value="pt">Português</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
+          </div>
+
+          <button className="btn btn-accent btn-lg btn-full" type="submit" disabled={loading} style={{ marginTop: 12 }}>
+            {loading ? "SALVANDO..." : "CONCLUIR CADASTRO"}
+          </button>
+          
+          <button className="btn btn-outline btn-lg btn-full" type="button" onClick={onCancel} style={{ marginTop: 8 }} disabled={loading}>
+            CANCELAR
+          </button>
+
+          {err && <div className="err-msg">{err}</div>}
+        </form>
+      </div>
     </div>
   );
 }
@@ -1576,12 +1691,35 @@ export default function App() {
   const [thresh, setThresh] = useState(DEFAULT_THRESH);
   const [pendingReqs, setPendingReqs] = useState(0);
 
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(false);
+
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((u) => {
+    const unsubscribe = auth.onAuthStateChanged(async (u) => {
       setUser(u);
       if (!u) {
         setSetor(null);
         setSectors([]);
+        setNeedsOnboarding(false);
+      } else {
+        const isGoogle = u.providerData && u.providerData.some(p => p.providerId === "google.com");
+        if (isGoogle) {
+          setCheckingOnboarding(true);
+          try {
+            const docSnap = await getDoc(doc(db, "users", u.email));
+            if (!docSnap.exists()) {
+              setNeedsOnboarding(true);
+            } else {
+              setNeedsOnboarding(false);
+            }
+          } catch (e) {
+            console.error("Erro ao verificar onboarding:", e);
+          } finally {
+            setCheckingOnboarding(false);
+          }
+        } else {
+          setNeedsOnboarding(false);
+        }
       }
     });
     return () => unsubscribe();
@@ -1682,6 +1820,36 @@ export default function App() {
 
   if (!user) return <><style>{styles}</style><div className={`app ${theme}`}><LoginScreen onLogin={setUser} theme={theme} toggleTheme={toggleTheme} /><Toast toasts={toasts} /></div></>;
 
+  if (checkingOnboarding) {
+    return (
+      <><style>{styles}</style>
+        <div className={`app ${theme}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--text-dim)" }}>Verificando cadastro...</div>
+        </div>
+      </>
+    );
+  }
+
+  if (needsOnboarding) {
+    return (
+      <><style>{styles}</style>
+        <GoogleOnboardingScreen
+          user={user}
+          onComplete={() => {
+            setNeedsOnboarding(false);
+            loadSectors();
+          }}
+          onCancel={async () => {
+            await signOut(auth);
+            setUser(null);
+            setNeedsOnboarding(false);
+          }}
+        />
+        <Toast toasts={toasts} />
+      </>
+    );
+  }
+
   if (!setor) return (
     <><style>{styles}</style>
       <div className={`app ${theme}`} style={{ position: "relative", overflow: "hidden" }}>
@@ -1724,7 +1892,7 @@ export default function App() {
     <><style>{styles}</style>
       <div className={`app ${theme}`}>
         <header className="header">
-          <div className="header-logo"><Icon name={s.iconName || "package"} size={20} color={s.color} /> SystemStock <span className="setor-tag" style={{ borderColor: s.color, color: s.color }}>{s.label}</span></div>
+          <div className="header-logo" style={{ fontSize: 16 }}>Sys - <span className="setor-tag" style={{ borderColor: s.color, color: s.color, marginLeft: 6 }}>{s.label}</span></div>
           <div className="header-right">
             <button onClick={toggleTheme} className="hbtn" style={{ borderRadius: "50%", width: 32, height: 32, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }} aria-label="Toggle Theme">
               {theme === "light" ? (
@@ -1733,9 +1901,7 @@ export default function App() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
               )}
             </button>
-            <span className="header-email">{user.email}</span>
-            <button className="hbtn" onClick={back}><Icon name="arrowLeft" size={14} /> Setores</button>
-            <button className="hbtn danger" onClick={logout}><Icon name="logout" size={14} /></button>
+            <button className="hbtn danger" onClick={back}><Icon name="logout" size={14} /> SAIR</button>
           </div>
         </header>
         <div className="main-layout">
