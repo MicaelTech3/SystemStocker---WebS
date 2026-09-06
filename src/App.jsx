@@ -1765,6 +1765,10 @@ export default function App() {
     localStorage.setItem("theme", next);
   };
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
+
   const addToast = useCallback((message, type = "info") => {
     const id = Date.now();
     setToasts(p => [...p, { id, message, type }]);
@@ -2226,65 +2230,65 @@ function BaixarAppsView() {
             </div>
           </nav>
         )}
-      </div>
 
-      {/* ══════════ MODAL FLUTUANTE DE NAVEGAÇÃO (ESTILO DESIGNER TV) ══════════ */}
-      {showModalMenu && (
-        <div className="modal-sidebar-overlay" onClick={e => e.target === e.currentTarget && setShowModalMenu(false)}>
-          <div className="modal-sidebar-card">
-            <div className="modal-sidebar-header">
-              <div className="modal-sidebar-brand">
-                <div className="modal-sidebar-logo-icon">
-                  <Icon name="package" size={22} color="var(--accent)" />
+        {/* ══════════ MODAL FLUTUANTE DE NAVEGAÇÃO (ESTILO DESIGNER TV) ══════════ */}
+        {showModalMenu && (
+          <div className="modal-sidebar-overlay" onClick={e => e.target === e.currentTarget && setShowModalMenu(false)}>
+            <div className="modal-sidebar-card">
+              <div className="modal-sidebar-header">
+                <div className="modal-sidebar-brand">
+                  <div className="modal-sidebar-logo-icon">
+                    <Icon name="package" size={22} color="var(--accent)" />
+                  </div>
+                  <div>
+                    <div className="modal-sidebar-title">SYS</div>
+                    <div className="modal-sidebar-sub">Setor: {s?.label || "Geral"}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="modal-sidebar-title">SYS</div>
-                  <div className="modal-sidebar-sub">Setor: {s?.label || "Geral"}</div>
-                </div>
+                <button className="modal-sidebar-close" onClick={() => setShowModalMenu(false)} title="Fechar Menu">
+                  <Icon name="x" size={16} />
+                </button>
               </div>
-              <button className="modal-sidebar-close" onClick={() => setShowModalMenu(false)} title="Fechar Menu">
-                <Icon name="x" size={16} />
-              </button>
-            </div>
 
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {navGroups.map(g => (
-                <div key={g.group} className="modal-nav-group">
-                  <div className="modal-nav-group-title">{g.group}</div>
-                  {g.items.map(item => (
-                    <button
-                      key={item.id}
-                      className={`modal-nav-item ${activeNavId === item.id ? "active" : ""}`}
-                      onClick={() => handleNavClick(item.id)}
-                    >
-                      <span className="modal-nav-item-icon">
-                        <Icon name={item.icon} size={18} />
-                      </span>
-                      <span>{item.label}</span>
-                      {item.badge && <span className="modal-nav-badge">{item.badge}</span>}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {navGroups.map(g => (
+                  <div key={g.group} className="modal-nav-group">
+                    <div className="modal-nav-group-title">{g.group}</div>
+                    {g.items.map(item => (
+                      <button
+                        key={item.id}
+                        className={`modal-nav-item ${activeNavId === item.id ? "active" : ""}`}
+                        onClick={() => handleNavClick(item.id)}
+                      >
+                        <span className="modal-nav-item-icon">
+                          <Icon name={item.icon} size={18} />
+                        </span>
+                        <span>{item.label}</span>
+                        {item.badge && <span className="modal-nav-badge">{item.badge}</span>}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
 
-            <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 6 }}>
-              <button className="modal-nav-item" onClick={() => { toggleTheme(); setShowModalMenu(false); }}>
-                <span className="modal-nav-item-icon">
-                  <Icon name={theme === "light" ? "moon" : "sun"} size={18} />
-                </span>
-                <span>Tema {theme === "light" ? "Escuro" : "Claro"}</span>
-              </button>
-              <button className="modal-nav-item" style={{ color: "var(--danger)" }} onClick={() => { setShowModalMenu(false); back(); }}>
-                <span className="modal-nav-item-icon">
-                  <Icon name="logout" size={18} />
-                </span>
-                <span>Sair do Setor</span>
-              </button>
+              <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 6 }}>
+                <button className="modal-nav-item" onClick={() => { toggleTheme(); setShowModalMenu(false); }}>
+                  <span className="modal-nav-item-icon">
+                    <Icon name={theme === "light" ? "moon" : "sun"} size={18} />
+                  </span>
+                  <span>Tema {theme === "light" ? "Escuro" : "Claro"}</span>
+                </button>
+                <button className="modal-nav-item" style={{ color: "var(--danger)" }} onClick={() => { setShowModalMenu(false); back(); }}>
+                  <span className="modal-nav-item-icon">
+                    <Icon name="logout" size={18} />
+                  </span>
+                  <span>Sair do Setor</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <Toast toasts={toasts} />
     </>

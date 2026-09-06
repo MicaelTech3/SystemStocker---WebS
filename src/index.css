@@ -217,7 +217,7 @@ html, body {
   justify-content: space-between;
   padding-bottom: 14px;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sidebar-border);
 }
 
 .modal-sidebar-brand {
@@ -248,7 +248,7 @@ html, body {
 .modal-sidebar-sub {
   font-family: var(--mono);
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--sidebar-text-dim);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-top: 3px;
@@ -258,9 +258,9 @@ html, body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1.5px solid var(--border2);
+  border: 1.5px solid var(--sidebar-border);
   background: transparent;
-  color: var(--text-dim);
+  color: var(--sidebar-text-dim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -281,7 +281,7 @@ html, body {
 .modal-nav-group-title {
   font-family: var(--mono);
   font-size: 9px;
-  color: var(--text-dim);
+  color: var(--sidebar-text-dim);
   letter-spacing: 2px;
   text-transform: uppercase;
   padding: 4px 10px;
@@ -297,7 +297,7 @@ html, body {
   font-family: var(--sans);
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-mid);
+  color: var(--sidebar-text);
   background: transparent;
   border: 1.5px solid transparent;
   cursor: pointer;
@@ -309,8 +309,8 @@ html, body {
   position: relative;
 }
 .modal-nav-item:hover {
-  background: var(--surface2);
-  color: var(--text);
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
 }
 .modal-nav-item.active {
   border-color: var(--accent);
