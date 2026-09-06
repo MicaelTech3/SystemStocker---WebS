@@ -10,21 +10,12 @@ import {
   getFirestore, collection, addDoc, getDocs, doc, getDoc,
   setDoc, query, where, updateDoc, increment, serverTimestamp, deleteDoc, onSnapshot
 } from "firebase/firestore";
+import { Icon } from "./icons.jsx";
 
 const params = new URLSearchParams(window.location.search);
 const empresaId = params.get("empresa") || "default";
 
 const getCol = (sector, type) => `users/${empresaId}/setores/${sector}/${type}`;
-
-// Emojis for sectors
-const getEmojiForIcon = (iconName) => {
-  const mapping = {
-    monitor: "🖥️", utensils: "🍽️", sparkles: "✨", broom: "🧹",
-    wrench: "🔧", tools: "🔧", hammer: "🔨", home: "🏠",
-    package: "📦", tag: "🎟️", cpu: "💻", grid: "📊", clipboardList: "📋"
-  };
-  return mapping[iconName] || "📦";
-};
 
 // CSS
 const css = `
@@ -1218,13 +1209,13 @@ export default function Caixa() {
               style={{ padding: "4px 8px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
               aria-label="Menu"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+              <Icon name="menu" size={16} />
             </button>
-            <div className="caixa-logo">CAIXA</div>
+            <div className="caixa-logo">SYS POS</div>
             {selectedSector && fase === "pos" && (
               <>
                 <span className="caixa-badge" style={{ borderColor: selectedSector.color, color: selectedSector.color, cursor: "default" }}>
-                  {getEmojiForIcon(selectedSector.iconName)} {selectedSector.label}
+                  <Icon name={selectedSector.iconName || "package"} size={14} color={selectedSector.color} /> {selectedSector.label}
                 </span>
                 {caixaAberto && (
                   <span className="caixa-badge" style={{ borderColor: "var(--success)", color: "var(--success)", cursor: "default", background: "rgba(16,185,129,0.06)" }}>
@@ -1236,13 +1227,6 @@ export default function Caixa() {
           </div>
 
           <div className="header-actions-desktop" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={toggleTheme} className="caixa-badge" style={{ borderRadius: "50%", width: 28, height: 28, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }} aria-label="Toggle Theme">
-              {theme === "light" ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
-              )}
-            </button>
             {selectedSector && fase === "pos" && (
               <>
                 <button className={`caixa-badge ${posTab === "vendas" ? "active" : ""}`} onClick={() => setPosTab("vendas")}>Frente de Caixa</button>
@@ -1250,113 +1234,328 @@ export default function Caixa() {
                 {caixaAberto && (
                   <button className="caixa-badge" style={{ borderColor: "var(--warn)", color: "var(--warn)" }} onClick={() => setShowClosure(true)}>Fechamento</button>
                 )}
-                <button className="caixa-badge" style={{ borderColor: "var(--danger)", color: "var(--danger)" }} onClick={handleLogout}>Sair</button>
+                <button className="caixa-badge" style={{ borderColor: "var(--danger)", color: "var(--danger)", padding: "6px 8px" }} onClick={handleLogout} title="Sair do POS">
+                  <Icon name="logout" size={14} />
+                </button>
               </>
             )}
           </div>
-
-          {/* Right side on mobile: just theme toggle */}
-          <div style={{ display: "none" }} className="header-actions-mobile">
-            <button onClick={toggleTheme} className="caixa-badge" style={{ borderRadius: "50%", width: 32, height: 32, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }}>
-              {theme === "light" ? "🌙" : "☀️"}
-            </button>
-          </div>
         </header>
 
-        {/* ══════════ MOBILE SIDEBAR DRAWER ══════════ */}
-        <div className={`mobile-sidebar-backdrop ${showSidebar ? "open" : ""}`} onClick={() => setShowSidebar(false)} />
-        <div className={`mobile-sidebar-drawer ${showSidebar ? "open" : ""}`}>
-          {/* Drawer Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-            <span style={{ fontFamily: "var(--display)", fontSize: 20, color: "var(--accent)", letterSpacing: 2 }}>MENU</span>
-            <button onClick={() => setShowSidebar(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text)", fontSize: 18 }}>✕</button>
-          </div>
-
-          {/* Theme Toggle */}
-          <div className="mobile-sidebar-section">
-            <div className="mobile-sidebar-title">Aparência</div>
-            <button onClick={() => { toggleTheme(); }} className="mobile-sidebar-download-btn" style={{ cursor: "pointer", border: "1px solid var(--border2)" }}>
-              {theme === "light" ? "🌙 Modo Escuro" : "☀️ Modo Claro"}
-            </button>
-          </div>
-
-          {/* POS Navigation */}
-          {selectedSector && fase === "pos" && (
-            <div className="mobile-sidebar-section">
-              <div className="mobile-sidebar-title">Navegação</div>
-              <button className={`mobile-sidebar-download-btn ${posTab === "vendas" ? "active" : ""}`} onClick={() => { setPosTab("vendas"); setShowSidebar(false); }}
-                style={{ cursor: "pointer", background: posTab === "vendas" ? "var(--accent)" : undefined, color: posTab === "vendas" ? "#fff" : undefined, border: posTab === "vendas" ? "1px solid var(--accent)" : undefined }}>
-                🛒 Frente de Caixa
-              </button>
-              <button className={`mobile-sidebar-download-btn ${posTab === "fiadores" ? "active" : ""}`} onClick={() => { setPosTab("fiadores"); setShowSidebar(false); }}
-                style={{ cursor: "pointer", background: posTab === "fiadores" ? "var(--accent)" : undefined, color: posTab === "fiadores" ? "#fff" : undefined, border: posTab === "fiadores" ? "1px solid var(--accent)" : undefined }}>
-                📋 Clientes (Fiado)
-              </button>
-            </div>
-          )}
-
-          {/* Tools */}
-          {selectedSector && fase === "pos" && caixaAberto && (
-            <div className="mobile-sidebar-section">
-              <div className="mobile-sidebar-title">Ferramentas</div>
-              <button className="mobile-sidebar-download-btn" style={{ cursor: "pointer" }} onClick={() => { setShowClosure(true); setShowSidebar(false); }}>
-                🔒 Fechar Caixa / Relatório
-              </button>
-              <button className="mobile-sidebar-download-btn" style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => { handleToggleScannerActive(); setShowSidebar(false); }}>
-                📷 Scanner: {scannerActive ? "ATIVADO ✓" : "DESATIVADO"}
-              </button>
-            </div>
-          )}
-
-          {/* Downloads */}
-          <div className="mobile-sidebar-section">
-            <div className="mobile-sidebar-title">Baixar Aplicativos</div>
-            <a className="mobile-sidebar-download-btn" href="/Baixar/SystemStock adm.apk" download>
-              <span style={{ fontSize: 18 }}>📦</span>
-              <div>
-                <div style={{ fontWeight: 600 }}>App Administrador</div>
-                <div style={{ fontSize: 10, color: "var(--text-dim)" }}>systemstock-adm.apk</div>
+        {/* ══════════ SIDEBAR MODAL (Estilo Unificado DSignerTV) ══════════ */}
+        {showSidebar && (
+          <div className="modal-sidebar-overlay" onClick={() => setShowSidebar(false)}>
+            <div className="modal-sidebar-card" onClick={e => e.stopPropagation()}>
+              
+              {/* Header */}
+              <div className="modal-sidebar-header">
+                <div className="modal-sidebar-brand">
+                  <div className="modal-sidebar-logo-icon">
+                    <Icon name="store" size={22} color="var(--accent)" />
+                  </div>
+                  <div>
+                    <div className="modal-sidebar-title">SYS POS</div>
+                    <div className="modal-sidebar-sub">Frente de Vendas</div>
+                  </div>
+                </div>
+                <button className="modal-sidebar-close" onClick={() => setShowSidebar(false)} aria-label="Fechar Menu">
+                  <Icon name="x" size={16} />
+                </button>
               </div>
-            </a>
-            <a className="mobile-sidebar-download-btn" href="/Baixar/SystemStock User.apk" download>
-              <span style={{ fontSize: 18 }}>📱</span>
-              <div>
-                <div style={{ fontWeight: 600 }}>App Usuário / Requisição</div>
-                <div style={{ fontSize: 10, color: "var(--text-dim)" }}>systemstock-user.apk</div>
-              </div>
-            </a>
-          </div>
 
-          {/* Logout */}
-          {fase === "pos" && (
-            <div style={{ marginTop: "auto" }}>
-              <button className="mobile-sidebar-download-btn" style={{ cursor: "pointer", color: "var(--danger)", borderColor: "var(--danger)", width: "100%", justifyContent: "center" }}
-                onClick={() => { handleLogout(); setShowSidebar(false); }}>
-                ← Sair do Caixa
-              </button>
+              {/* Conteúdo Navegação e Configurações */}
+              <div className="modal-nav-group">
+                <div className="modal-nav-group-title">APARÊNCIA & CONTA</div>
+                <button
+                  className="modal-nav-item"
+                  onClick={() => { toggleTheme(); }}
+                >
+                  <span className="modal-nav-item-icon">
+                    <Icon name={theme === "light" ? "moon" : "sun"} size={16} />
+                  </span>
+                  <span>{theme === "light" ? "Modo Escuro" : "Modo Claro"}</span>
+                </button>
+              </div>
+
+              {/* CONTA DA EMPRESA */}
+              {empresaId !== "default" && (
+                <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                  <div className="modal-nav-group-title">CONTA DA EMPRESA</div>
+                  <form onSubmit={handleSaveAccountConfig} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 6px" }}>
+                    <div>
+                      <label className="sidebar-field-label">Nome da Empresa</label>
+                      <input className="sidebar-input" value={editEmpresaNome} onChange={e => setEditEmpresaNome(e.target.value)} placeholder="Ex: Loja do João" />
+                    </div>
+                    <div>
+                      <label className="sidebar-field-label">Telefone / Contato</label>
+                      <input className="sidebar-input" value={editEmpresaNumero} onChange={e => setEditEmpresaNumero(e.target.value)} placeholder="(99) 99999-9999" />
+                    </div>
+                    <div>
+                      <label className="sidebar-field-label">Senha da Conta (para saídas)</label>
+                      <input className="sidebar-input" type="password" value={editEmpresaSenha} onChange={e => setEditEmpresaSenha(e.target.value)} placeholder="Mín. 6 caracteres" />
+                    </div>
+                    <button type="submit" className="btn-premium" style={{ width: "100%", padding: "8px", fontSize: 12, marginTop: 4 }} disabled={savingConfig}>
+                      <Icon name="check" size={14} color="#fff" /> {savingConfig ? "Salvando..." : "Salvar Configurações"}
+                    </button>
+                  </form>
+
+                  {/* Link do Caixa */}
+                  <div style={{ marginTop: 10, padding: "0 6px" }}>
+                    <label className="sidebar-field-label">Link do Caixa</label>
+                    <div className="link-box" style={{ fontSize: 10 }}>{window.location.origin + "/caixa?empresa=" + encodeURIComponent(empresaId)}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        className="modal-nav-item"
+                        style={{ padding: "8px", justifyContent: "center", fontSize: 12 }}
+                        onClick={() => { window.open(window.location.origin + "/caixa?empresa=" + encodeURIComponent(empresaId), "_blank"); }}
+                      >
+                        <Icon name="eye" size={14} /> Ver
+                      </button>
+                      <button
+                        className="modal-nav-item"
+                        style={{ padding: "8px", justifyContent: "center", fontSize: 12 }}
+                        onClick={handleShareLink}
+                      >
+                        <Icon name="share" size={14} /> Compartilhar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Reset */}
+                  <div style={{ marginTop: 10, padding: "0 6px" }}>
+                    <button
+                      className="modal-nav-item"
+                      style={{ color: "var(--danger)", border: "1px dashed var(--danger)", justifyContent: "center" }}
+                      onClick={handleResetAccount}
+                      disabled={savingConfig}
+                    >
+                      <Icon name="trash" size={14} color="var(--danger)" /> Resetar Toda Conta
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* NAVEGAÇÃO POS */}
+              {selectedSector && fase === "pos" && (
+                <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                  <div className="modal-nav-group-title">NAVEGAÇÃO POS</div>
+                  <button
+                    className={`modal-nav-item ${posTab === "vendas" ? "active" : ""}`}
+                    onClick={() => { setPosTab("vendas"); setShowSidebar(false); }}
+                  >
+                    <span className="modal-nav-item-icon">
+                      <Icon name="shoppingBag" size={16} />
+                    </span>
+                    <span>Frente de Caixa</span>
+                  </button>
+                  <button
+                    className={`modal-nav-item ${posTab === "fiadores" ? "active" : ""}`}
+                    onClick={() => { setPosTab("fiadores"); setShowSidebar(false); }}
+                  >
+                    <span className="modal-nav-item-icon">
+                      <Icon name="users" size={16} />
+                    </span>
+                    <span>Clientes (Fiado)</span>
+                  </button>
+                </div>
+              )}
+
+              {/* SCANNER */}
+              {selectedSector && fase === "pos" && caixaAberto && (
+                <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                  <div className="modal-nav-group-title">SCANNER DE CÂMERA</div>
+                  <button
+                    className={`modal-nav-item ${scannerActive ? "active" : ""}`}
+                    onClick={() => { handleToggleScannerActive(); setShowSidebar(false); }}
+                  >
+                    <span className="modal-nav-item-icon">
+                      <Icon name="barcode" size={16} />
+                    </span>
+                    <span>Scanner: {scannerActive ? "ATIVADO" : "DESATIVADO"}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* FERRAMENTAS */}
+              {selectedSector && fase === "pos" && caixaAberto && (
+                <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                  <div className="modal-nav-group-title">FERRAMENTAS DE CAIXA</div>
+                  <button
+                    className="modal-nav-item"
+                    onClick={() => { setShowClosure(true); setShowSidebar(false); }}
+                  >
+                    <span className="modal-nav-item-icon">
+                      <Icon name="fileText" size={16} />
+                    </span>
+                    <span>Fechar Caixa / Relatório</span>
+                  </button>
+                </div>
+              )}
+
+              {/* SETORES DISPONÍVEIS */}
+              {sectors.length > 0 && (
+                <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                  <div className="modal-nav-group-title">SETORES DISPONÍVEIS</div>
+                  {sectors.map(s => (
+                    <button
+                      key={s.id}
+                      className="modal-nav-item"
+                      onClick={() => { setShowSidebar(false); if (fase !== "pos") selectSector(s); }}
+                    >
+                      <span className="modal-nav-item-icon">
+                        <Icon name={s.iconName || "package"} size={16} color={s.color} />
+                      </span>
+                      <span>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* DOWNLOADS DE APKS */}
+              <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                <div className="modal-nav-group-title">BAIXAR APLICATIVOS</div>
+                <a className="modal-nav-item" href="/Baixar/SystemStock adm.apk" download>
+                  <span className="modal-nav-item-icon">
+                    <Icon name="download" size={16} />
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 12 }}>App Administrador</div>
+                    <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Android .apk</div>
+                  </div>
+                </a>
+                <a className="modal-nav-item" href="/Baixar/SystemStock User.apk" download>
+                  <span className="modal-nav-item-icon">
+                    <Icon name="download" size={16} />
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 12 }}>App Requisições</div>
+                    <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Android .apk</div>
+                  </div>
+                </a>
+              </div>
+
+              {/* SAIR DO SETOR */}
+              {fase === "pos" && (
+                <div style={{ marginTop: "auto", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                  <button
+                    className="modal-nav-item"
+                    style={{ color: "var(--danger)", justifyContent: "center" }}
+                    onClick={() => { handleLogout(); setShowSidebar(false); }}
+                  >
+                    <Icon name="logOut" size={16} color="var(--danger)" /> Sair do Setor
+                  </button>
+                </div>
+              )}
+
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* FASE: SELEÇÃO DE SETOR */}
         {fase === "setores" && (
-          <div style={{ position: "relative", zIndex: 10, flex: 1, padding: 30, maxWidth: 800, margin: "40px auto", width: "100%" }}>
-            <h2 style={{ fontFamily: "var(--display)", fontSize: 28, letterSpacing: 2, marginBottom: 20, textAlign: "center" }}>SELECIONE SEU SETOR DE VENDAS</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
-              {sectors.map(s => (
-                <div
-                  key={s.id}
-                  onClick={() => selectSector(s)}
-                  style={{
-                    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r)", padding: 24, cursor: "pointer",
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: 12, transition: "all 0.2s"
-                  }}
-                  className="sector-select-card"
-                >
-                  <span style={{ fontSize: 32 }}>{getEmojiForIcon(s.iconName)}</span>
-                  <span style={{ fontFamily: "var(--display)", fontSize: 18, color: s.color }}>{s.label}</span>
+          <div className="setores-layout" style={{ position: "relative", zIndex: 10 }}>
+
+            {/* LEFT SIDEBAR — Conta & Link */}
+            <div className="setores-sidebar">
+              <div style={{ fontFamily: "var(--display)", fontSize: 22, color: "var(--accent)", letterSpacing: 2, marginBottom: 20 }}>⚙ CONTA</div>
+
+              {empresaId !== "default" && (
+                <>
+                  {empresaDoc && (
+                    <div style={{ marginBottom: 16, padding: "10px 12px", background: "var(--surface2)", borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{empresaDoc.nomeEmpresa || "Sem nome"}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>{empresaId}</div>
+                      {empresaDoc.numero && <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>📞 {empresaDoc.numero}</div>}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSaveAccountConfig} style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                    <div className="sidebar-field-group">
+                      <label className="sidebar-field-label">Nome da Empresa</label>
+                      <input className="sidebar-input" value={editEmpresaNome} onChange={e => setEditEmpresaNome(e.target.value)} placeholder="Ex: Loja do João" />
+                    </div>
+                    <div className="sidebar-field-group">
+                      <label className="sidebar-field-label">Telefone / Contato</label>
+                      <input className="sidebar-input" value={editEmpresaNumero} onChange={e => setEditEmpresaNumero(e.target.value)} placeholder="(99) 99999-9999" />
+                    </div>
+                    <div className="sidebar-field-group">
+                      <label className="sidebar-field-label">Senha (para saídas de estoque)</label>
+                      <input className="sidebar-input" type="password" value={editEmpresaSenha} onChange={e => setEditEmpresaSenha(e.target.value)} placeholder="Mín. 6 caracteres" />
+                    </div>
+                    <button type="submit" className="btn-premium" style={{ width: "100%", padding: 8, fontSize: 12 }} disabled={savingConfig}>
+                      {savingConfig ? "Salvando..." : "💾 Salvar Configurações"}
+                    </button>
+                  </form>
+
+                  {/* Link Compartilhável */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, marginBottom: 14 }}>
+                    <div className="sidebar-field-label" style={{ marginBottom: 6 }}>Link do Caixa</div>
+                    <div className="link-box">{window.location.origin + "/caixa?empresa=" + encodeURIComponent(empresaId)}</div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      <button
+                        className="caixa-badge"
+                        style={{ flex: 1, justifyContent: "center", padding: "8px 4px", color: "var(--info)", borderColor: "var(--info)" }}
+                        onClick={() => window.open(window.location.origin + "/caixa?empresa=" + encodeURIComponent(empresaId), "_blank")}
+                      >👁 Ver</button>
+                      <button
+                        className="caixa-badge"
+                        style={{ flex: 1, justifyContent: "center", padding: "8px 4px", color: "var(--success)", borderColor: "var(--success)" }}
+                        onClick={handleShareLink}
+                      >🔗 Compartilhar</button>
+                    </div>
+                  </div>
+
+                  {/* Redefinir / Resetar */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+                    <div className="sidebar-field-label" style={{ marginBottom: 6, color: "var(--danger)" }}>Zona de Risco</div>
+                    <button
+                      className="caixa-badge"
+                      style={{ width: "100%", justifyContent: "center", color: "var(--danger)", borderColor: "var(--danger)", padding: "8px", fontSize: 10 }}
+                      onClick={handleResetAccount}
+                      disabled={savingConfig}
+                    >⚠ Resetar toda a conta</button>
+                  </div>
+                </>
+              )}
+
+              {empresaId === "default" && (
+                <div style={{ fontSize: 12, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>
+                  Acesse via link com ?empresa=seuEmail para configurar sua conta.
                 </div>
-              ))}
+              )}
+            </div>
+
+            {/* RIGHT — Sector Grid */}
+            <div className="setores-grid-wrap">
+              <h2 style={{ fontFamily: "var(--display)", fontSize: 28, letterSpacing: 2, marginBottom: 8 }}>SELECIONE SEU SETOR</h2>
+              <div style={{ fontSize: 12, color: "var(--text-dim)", fontFamily: "var(--mono)", marginBottom: 24 }}>Escolha o setor de vendas para acessar o caixa</div>
+              {sectors.length === 0 ? (
+                <div style={{ padding: "40px 0", textAlign: "center", color: "var(--text-dim)", fontFamily: "var(--mono)", fontSize: 13 }}>
+                  Nenhum setor encontrado. Configure pelo Admin.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
+                  {sectors.map(s => (
+                    <div
+                      key={s.id}
+                      onClick={() => selectSector(s)}
+                      style={{
+                        background: "var(--surface)", border: `1px solid ${s.color}44`, borderRadius: "var(--r)",
+                        padding: 24, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center",
+                        gap: 12, transition: "all 0.2s", boxShadow: `0 0 0 0 ${s.color}`
+                      }}
+                      className="sector-select-card"
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 8px 24px ${s.color}33`; e.currentTarget.style.borderColor = s.color; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; e.currentTarget.style.borderColor = `${s.color}44`; }}
+                    >
+                      <div style={{ width: 54, height: 54, borderRadius: "50%", background: `${s.color || "var(--accent)"}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icon name={s.iconName || "package"} size={28} color={s.color} />
+                      </div>
+                      <span style={{ fontFamily: "var(--display)", fontSize: 20, color: s.color }}>{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1437,20 +1636,13 @@ export default function Caixa() {
                         <button type="submit" className="caixa-badge" style={{ whiteSpace: "nowrap" }}>Buscar</button>
                       </form>
 
-                      {/* Persistent Inline Scanner preview block */}
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
-                        <button
-                          type="button"
-                          onClick={handleToggleScannerActive}
-                          className={`caixa-badge ${scannerActive ? "active" : ""}`}
-                          style={{ fontSize: 11, padding: "8px 14px" }}
-                        >
-                          📹 Scanner Automático: {scannerActive ? "ATIVADO" : "DESATIVADO"}
-                        </button>
-                        <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>
-                          (Salvo no cache. Câmera sempre aberta para leitura rápida)
-                        </span>
-                      </div>
+                      {/* Scanner status strip — no toggle button, controlled from sidebar */}
+                      {scannerActive && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "4px 8px", background: "rgba(16,185,129,0.06)", borderRadius: "var(--r)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                          <span style={{ color: "var(--success)", fontSize: 11 }}>●</span>
+                          <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>Scanner ativo — aponte o código de barras para a câmera</span>
+                        </div>
+                      )}
 
                       {scannerActive && (
                         <div className="inline-scanner" style={{ position: "relative", minHeight: 180, background: "#000", borderRadius: "var(--r)", overflow: "hidden", border: "2px solid var(--accent)", marginBottom: 12 }}>
@@ -1526,7 +1718,7 @@ export default function Caixa() {
                       <div className="pos-grid">
                         {filteredProducts.map(p => {
                           const qty = fluxoLoja === "loja" ? (p.qtdLoja || 0) : (p.quantidade || 0);
-                          const price = Number(p.precoVenda) || 0;
+                          const price = parsePrice(p.precoVenda);
                           return (
                             <div key={p.id} className="pos-prod-card" onClick={() => addToCart(p)}>
                               <div className="pos-prod-card-name">{p.nome}</div>
@@ -1534,15 +1726,15 @@ export default function Caixa() {
                                 Disponível: <strong style={{ color: qty > 0 ? "var(--success)" : "var(--danger)" }}>{qty}</strong>
                               </div>
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                                <div className="pos-prod-card-price">
-                                  R$ {price.toFixed(2)}
+                                <div className="pos-prod-card-price" style={{ color: price > 0 ? "var(--accent)" : "var(--text-dim)" }}>
+                                  {price > 0 ? `R$ ${price.toFixed(2)}` : "Sem preço"}
                                 </div>
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setQuickEditProduct(p);
-                                    setQuickPriceVal(price.toString());
+                                    setQuickPriceVal(price > 0 ? price.toFixed(2) : "");
                                   }}
                                   style={{
                                     background: "rgba(249,115,22,0.1)",
@@ -1558,7 +1750,7 @@ export default function Caixa() {
                                   }}
                                   title="Editar Preço no Banco"
                                 >
-                                  ✏️ Editar
+                                  ✏️
                                 </button>
                               </div>
                             </div>
@@ -1582,7 +1774,7 @@ export default function Caixa() {
                           </div>
                         ) : (
                           cart.map(item => {
-                            const price = Number(item.precoVenda) || 0;
+                            const price = parsePrice(item.precoVenda);
                             return (
                               <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
                                 <div style={{ fontSize: 13, fontWeight: 500 }}>{item.nome}</div>
@@ -1592,9 +1784,11 @@ export default function Caixa() {
                                     <input
                                       type="number"
                                       step="0.01"
+                                      inputMode="decimal"
                                       value={item.precoVenda === "" ? "" : price}
                                       onChange={(e) => {
-                                        const newVal = e.target.value === "" ? "" : (Number(e.target.value) || 0);
+                                        const raw = e.target.value;
+                                        const newVal = raw === "" ? "" : parsePrice(raw);
                                         setCart(cart.map(i => i.id === item.id ? { ...i, precoVenda: newVal } : i));
                                       }}
                                       style={{
@@ -1738,8 +1932,8 @@ export default function Caixa() {
 
                 {/* ══════════ GERENCIAR FIADORES ══════════ */}
                 {posTab === "fiadores" && (
-                  <div className="caixa-main-layout" style={{ overflowY: "auto", display: "block", padding: 20 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, maxWidth: 1100, margin: "0 auto" }}>
+                  <div className="caixa-main-layout" style={{ overflowY: "auto", display: "block", padding: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, maxWidth: 1100, margin: "0 auto" }}>
 
                       {/* Lado Esquerdo: Lista de Clientes */}
                       <div className="card-premium">
@@ -1757,43 +1951,76 @@ export default function Caixa() {
 
                         {filteredFiadores.length === 0 ? (
                           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--text-dim)", fontFamily: "var(--mono)", fontSize: 13 }}>
-                            Nenhum fiador cadastrado.
+                            Nenhum cliente cadastrado.
                           </div>
                         ) : (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             {filteredFiadores.map(f => {
                               const remainingLimit = f.limite - f.dividaAtual;
+                              const usedPct = Math.min(100, ((f.dividaAtual / f.limite) * 100) || 0);
+                              const isOverdue = f.dividaAtual >= f.limite * 0.9;
                               return (
-                                <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", border: "1px solid var(--border)", borderRadius: "var(--r)", background: "var(--surface2)" }}>
-                                  <div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <strong style={{ fontSize: 14 }}>{f.nome}</strong>
-                                      {f.fiel ? <span className="badge-fiel">FIEL</span> : <span className="badge-infiel">REGULAR</span>}
+                                <div key={f.id} style={{
+                                  padding: "14px 16px",
+                                  border: `1px solid ${isOverdue ? "rgba(239,68,68,0.3)" : "var(--border)"}`,
+                                  borderLeft: `4px solid ${isOverdue ? "var(--danger)" : remainingLimit > 0 ? "var(--success)" : "var(--warn)"}`,
+                                  borderRadius: "var(--r)",
+                                  background: isOverdue ? "rgba(239,68,68,0.04)" : "var(--surface2)"
+                                }}>
+                                  {/* Header row */}
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                                    <div>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                                        <strong style={{ fontSize: 15 }}>{f.nome}</strong>
+                                        {f.fiel ? <span className="badge-fiel">FIEL</span> : <span className="badge-infiel">REGULAR</span>}
+                                      </div>
+                                      <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>
+                                        Vence: todo dia {f.diaPagamento} &nbsp;·&nbsp;
+                                        <span style={{ color: isOverdue ? "var(--danger)" : "var(--text-dim)" }}>
+                                          {usedPct.toFixed(0)}% usado
+                                        </span>
+                                      </div>
                                     </div>
-                                    <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 11, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>
-                                      <span>Limite: <strong>R$ {f.limite.toFixed(2)}</strong></span>
-                                      <span>Dívida: <strong style={{ color: f.dividaAtual > 0 ? "var(--danger)" : "var(--text-dim)" }}>R$ {f.dividaAtual.toFixed(2)}</strong></span>
-                                      <span>Restante: <strong style={{ color: "var(--success)" }}>R$ {remainingLimit.toFixed(2)}</strong></span>
-                                    </div>
-                                    <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 4, fontFamily: "var(--mono)" }}>
-                                      Dia de Vencimento: todo dia {f.diaPagamento}
+                                    <div style={{ textAlign: "right" }}>
+                                      <div style={{ fontSize: 18, fontFamily: "var(--mono)", fontWeight: 700, color: isOverdue ? "var(--danger)" : "var(--text)" }}>
+                                        R$ {f.dividaAtual.toFixed(2)}
+                                      </div>
+                                      <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>dívida atual</div>
                                     </div>
                                   </div>
 
-                                  <div style={{ display: "flex", gap: 8 }}>
+                                  {/* Progress bar */}
+                                  <div style={{ height: 4, background: "var(--border2)", borderRadius: 99, marginBottom: 8, overflow: "hidden" }}>
+                                    <div style={{
+                                      height: "100%",
+                                      width: `${usedPct}%`,
+                                      background: isOverdue ? "var(--danger)" : usedPct > 60 ? "var(--warn)" : "var(--success)",
+                                      borderRadius: 99,
+                                      transition: "width 0.3s"
+                                    }} />
+                                  </div>
+
+                                  {/* Stats row */}
+                                  <div style={{ display: "flex", gap: 12, fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 10 }}>
+                                    <span>Limite: <strong style={{ color: "var(--text)" }}>R$ {f.limite.toFixed(2)}</strong></span>
+                                    <span>Disponível: <strong style={{ color: remainingLimit > 0 ? "var(--success)" : "var(--danger)" }}>R$ {remainingLimit.toFixed(2)}</strong></span>
+                                  </div>
+
+                                  {/* Action buttons */}
+                                  <div style={{ display: "flex", gap: 6 }}>
                                     <button
                                       className="caixa-badge"
-                                      style={{ borderColor: "var(--success)", color: "var(--success)", fontSize: 11 }}
-                                      onClick={() => { setShowQuitarFiador(f); setQuitarValor(f.dividaAtual.toString()); }}
+                                      style={{ flex: 1, justifyContent: "center", borderColor: "var(--success)", color: "var(--success)", fontSize: 11, padding: "6px" }}
+                                      onClick={() => { setShowQuitarFiador(f); setQuitarValor(f.dividaAtual.toFixed(2)); }}
                                     >
-                                      💵 Receber
+                                      💵 Receber Pagamento
                                     </button>
                                     <button
                                       className="caixa-badge"
-                                      style={{ borderColor: "var(--danger)", color: "var(--danger)", fontSize: 11 }}
+                                      style={{ borderColor: "var(--danger)", color: "var(--danger)", fontSize: 11, padding: "6px 10px" }}
                                       onClick={() => handleDeleteFiador(f)}
                                     >
-                                      ✕ Excluir
+                                      ✕
                                     </button>
                                   </div>
                                 </div>
@@ -1804,11 +2031,11 @@ export default function Caixa() {
                       </div>
 
                       {/* Lado Direito: Formulário de Cadastro */}
-                      <div className="card-premium" style={{ height: "fit-content" }}>
-                        <h3 style={{ fontFamily: "var(--display)", fontSize: 20, marginBottom: 14 }}>CADASTRAR FIADOR</h3>
-                        <form onSubmit={handleAddFiador} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div className="card-premium" style={{ height: "fit-content", position: "sticky", top: 0 }}>
+                        <h3 style={{ fontFamily: "var(--display)", fontSize: 20, marginBottom: 14, color: "var(--accent)" }}>+ NOVO CLIENTE</h3>
+                        <form onSubmit={handleAddFiador} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           <div>
-                            <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>NOME COMPLETO</label>
+                            <label style={{ display: "block", fontSize: 10, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4, textTransform: "uppercase" }}>Nome Completo *</label>
                             <input
                               type="text"
                               required
@@ -1816,47 +2043,52 @@ export default function Caixa() {
                               placeholder="Nome do cliente"
                               value={newFiadorNome}
                               onChange={e => setNewFiadorNome(e.target.value)}
+                              style={{ fontSize: 14 }}
                             />
                           </div>
 
-                          <div>
-                            <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>LIMITE DE CRÉDITO (R$)</label>
-                            <input
-                              type="number"
-                              min="1"
-                              required
-                              className="pos-search-input"
-                              placeholder="Ex: 500"
-                              value={newFiadorLimite}
-                              onChange={e => setNewFiadorLimite(e.target.value)}
-                            />
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: 10, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4, textTransform: "uppercase" }}>Limite (R$) *</label>
+                              <input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                inputMode="decimal"
+                                required
+                                className="pos-search-input"
+                                placeholder="500,00"
+                                value={newFiadorLimite}
+                                onChange={e => setNewFiadorLimite(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: "block", fontSize: 10, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4, textTransform: "uppercase" }}>Dia Pagamento</label>
+                              <select
+                                className="pos-search-input"
+                                value={newFiadorDiaPagamento}
+                                onChange={e => setNewFiadorDiaPagamento(e.target.value)}
+                              >
+                                {[...Array(31)].map((_, i) => (
+                                  <option key={i + 1} value={i + 1}>Dia {i + 1}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
 
-                          <div>
-                            <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>DIA DE PAGAMENTO</label>
-                            <select
-                              className="pos-search-input"
-                              value={newFiadorDiaPagamento}
-                              onChange={e => setNewFiadorDiaPagamento(e.target.value)}
-                            >
-                              {[...Array(31)].map((_, i) => (
-                                <option key={i + 1} value={i + 1}>todo dia {i + 1}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "var(--surface2)", borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
                             <input
                               type="checkbox"
-                              id="fiel"
+                              id="fiel-check"
                               checked={newFiadorFiel}
                               onChange={e => setNewFiadorFiel(e.target.checked)}
+                              style={{ width: 16, height: 16, accentColor: "var(--success)" }}
                             />
-                            <label htmlFor="fiel" style={{ fontSize: 12, userSelect: "none", cursor: "pointer" }}>Cliente Fiel/Fiel do Fiado</label>
+                            <label htmlFor="fiel-check" style={{ fontSize: 12, userSelect: "none", cursor: "pointer", flex: 1 }}>Cliente Fiel <span style={{ fontSize: 10, color: "var(--text-dim)" }}>(sem restrições de crédito)</span></label>
                           </div>
 
-                          <button type="submit" className="btn-premium" style={{ marginTop: 10 }} disabled={savingFiador}>
-                            {savingFiador ? "CADASTRANDO..." : "+ CADASTRAR FIADOR"}
+                          <button type="submit" className="btn-premium" style={{ marginTop: 4, width: "100%" }} disabled={savingFiador}>
+                            {savingFiador ? "CADASTRANDO..." : "+ CADASTRAR CLIENTE"}
                           </button>
                         </form>
                       </div>

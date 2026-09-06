@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Analytics } from "./Analytics.jsx";
-import { Configuracoes } from "./Configuracoes.jsx";
+import { Configuracoes, ConfigSetores, ConfigProdutosCategorias } from "./Configuracoes.jsx";
 import { auth, db, googleProvider } from "./firebase.js";
 import { getAuth, signInWithEmailAndPassword, signOut, signInWithPopup } from "firebase/auth";
 import {
@@ -8,51 +8,7 @@ import {
   setDoc, query, where, updateDoc, increment, orderBy, limit, serverTimestamp, getDoc,
   onSnapshot,
 } from "firebase/firestore";
-
-// ============================================================
-// SVG ICONS
-// ============================================================
-const Icon = ({ name, size = 18, color = "currentColor", style = {} }) => {
-  const icons = {
-    monitor: <><rect x="2" y="3" width="20" height="14" rx="2" /><polyline points="8 21 12 17 16 21" /></>,
-    utensils: <><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" /></>,
-    sparkles: <><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /></>,
-    broom: <><path d="M9 3a1 1 0 0 0-1 1v3H4a1 1 0 0 0-.71 1.71l8 8a1 1 0 0 0 1.42 0l8-8A1 1 0 0 0 20 7h-4V4a1 1 0 0 0-1-1H9z" /><path d="M8 21h8" /></>,
-    wrench: <><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></>,
-    tools: <><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /><path d="M2 14.5C2 16.43 3.57 18 5.5 18S9 16.43 9 14.5 7.43 11 5.5 11" /></>,
-    hammer: <><path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" /><path d="M17.64 15 22 10.64" /><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h2.47l2.26 1.91" /></>,
-    home: <><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
-    arrowUp: <><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>,
-    arrowDown: <><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></>,
-    package: <><line x1="16.5" y1="9.4" x2="7.5" y2="4.21" /><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></>,
-    barChart: <><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>,
-    fileText: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>,
-    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>,
-    camera: <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,
-    tag: <><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></>,
-    trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
-    edit: <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></>,
-    check: <><polyline points="20 6 9 17 4 12" /></>,
-    x: <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
-    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
-    arrowLeft: <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>,
-    save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></>,
-    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
-    search: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
-    cpu: <><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" /><line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" /><line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" /><line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" /></>,
-    grid: <><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></>,
-    chevronRight: <><polyline points="9 18 15 12 9 6" /></>,
-    clipboardList: <><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><line x1="12" y1="11" x2="16" y2="11" /><line x1="12" y1="16" x2="16" y2="16" /><line x1="8" y1="11" x2="8.01" y2="11" /><line x1="8" y1="16" x2="8.01" y2="16" /></>,
-    key: <><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></>,
-    bell: <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
-    truck: <><rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></>,
-  };
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", flexShrink: 0, ...style }}>
-      {icons[name] || null}
-    </svg>
-  );
-};
+import { Icon } from "./icons.jsx";
 
 // ─── SETORES (Dinâmicos) ──────────────────────────────────────
 let globalSectors = [];
@@ -115,18 +71,26 @@ const styles = `
   .hbtn.danger:hover,.hbtn.danger:active { border-color:var(--danger); color:var(--danger); }
   .header-email { font-family:var(--mono); font-size:11px; color:var(--text-dim); }
   .main-layout { display:flex; flex:1; overflow:hidden; }
-  .sidebar { width:200px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; }
-  .sidebar-setor { padding:14px 16px; border-bottom:1px solid var(--border); }
+  .sidebar { width:240px; background:var(--surface); border:1.5px solid var(--border2); border-radius:24px; margin:14px 0 14px 14px; height:calc(100vh - var(--header-h) - 28px); height:calc(100dvh - var(--header-h) - 28px); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.06); transition:width 0.28s cubic-bezier(0.16,1,0.3,1), margin 0.28s cubic-bezier(0.16,1,0.3,1); }
+  .sidebar.collapsed { width:72px; }
+  .sidebar-setor { padding:16px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; overflow:hidden; }
   .sidebar-setor-label { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-  .sidebar-setor-name { font-family:var(--display); font-size:20px; letter-spacing:2px; display:flex; align-items:center; gap:7px; }
-  .sidebar-nav { padding:6px 0; flex:1; }
-  .sidebar-group { padding:12px 16px 3px; font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; }
-  .sitem { display:flex; align-items:center; gap:10px; padding:10px 16px; font-family:var(--mono); font-size:12px; color:var(--text-dim); cursor:pointer; transition:all .15s; border-left:2px solid transparent; position:relative; }
+  .sidebar-setor-name { font-family:var(--display); font-size:20px; letter-spacing:2px; display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  .sidebar-nav { padding:10px 0; flex:1; display:flex; flex-direction:column; gap:2px; }
+  .sidebar-group { padding:10px 14px 4px; font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; white-space:nowrap; overflow:hidden; }
+  .sidebar.collapsed .sidebar-group { opacity:0; height:4px; padding:0; }
+  .sitem { display:flex; align-items:center; gap:12px; padding:10px 14px; margin:3px 10px; border-radius:14px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--text-mid); background:transparent; border:1.5px solid transparent; cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); white-space:nowrap; position:relative; }
+  .sidebar.collapsed .sitem { margin:3px 8px; padding:10px; justify-content:center; }
   .sitem:hover { background:var(--surface2); color:var(--text); }
-  .sitem.active { border-left-color:var(--accent); color:var(--accent); background:rgba(245,166,35,.06); }
-  .sitem-icon { width:20px; text-align:center; display:flex; align-items:center; justify-content:center; }
+  .sitem.active { border-color:var(--accent); background:var(--accent-light); color:var(--accent); font-weight:600; }
+  .sitem-icon { width:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .sitem-label { transition:opacity 0.2s, max-width 0.2s; overflow:hidden; text-overflow:ellipsis; }
+  .sidebar.collapsed .sitem-label { opacity:0; display:none; }
   .sitem-badge { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:var(--danger); color:white; font-family:var(--mono); font-size:9px; padding:1px 6px; border-radius:10px; min-width:18px; text-align:center; }
-  .content { flex:1; overflow-y:auto; padding:24px 20px; -webkit-overflow-scrolling:touch; }
+  .sidebar.collapsed .sitem-badge { right:4px; top:4px; transform:none; }
+  .sidebar-toggle-btn { background:transparent; border:1px solid var(--border2); color:var(--text-dim); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; flex-shrink:0; }
+  .sidebar-toggle-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .content { flex:1; overflow-y:auto; padding:24px 20px; -webkit-overflow-scrolling:touch; transition:all 0.28s ease; }
   .bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; height:var(--bottom-h); background:var(--surface); border-top:2px solid var(--border2); z-index:300; }
   .bottom-nav-inner { display:flex; align-items:stretch; height:calc(var(--bottom-h) - env(safe-area-inset-bottom,0px)); padding:0 6px; gap:2px; }
   .bnav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:10px 4px 8px; cursor:pointer; color:var(--text-dim); position:relative; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:color .15s; border-radius:6px; margin:4px 0; }
@@ -137,6 +101,7 @@ const styles = `
   .bnav-label { font-family:var(--mono); font-size:9px; letter-spacing:.5px; text-transform:uppercase; font-weight:600; }
   .bnav-dot { position:absolute; top:-3px; right:-5px; width:8px; height:8px; background:var(--danger); border-radius:50%; border:1px solid var(--surface); }
   @media (max-width:768px) { .sidebar { display:none; } .bottom-nav { display:block; } .header-email { display:none; } .content { padding:14px; padding-bottom:calc(var(--bottom-h) + 20px + env(safe-area-inset-bottom,0px)); } }
+  @media (min-width:769px) { .mobile-only-btn { display:none !important; } }
   .ambient-video { position:absolute; width:700px; height:700px; object-fit:cover; border-radius:50%; filter:blur(40px) opacity(0.35); pointer-events:none; z-index:1; animation:floatAmbient 22s ease-in-out infinite; }
   @keyframes floatAmbient { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(80px, -60px) scale(1.1); } }
   .login-screen { min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg); background-image:radial-gradient(circle at 20% 50%,rgba(245,166,35,.04) 0%,transparent 50%); position:relative; overflow:hidden; }
@@ -1855,6 +1820,100 @@ export default function App() {
     }
   }, [user, setor]);
 
+  const [showBottomNav, setShowBottomNav] = useState(() => localStorage.getItem("show_bottom_nav") === "true");
+  const [configSubTab, setConfigSubTab] = useState("empresa");
+  const [modoLojaAtivo, setModoLojaAtivo] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showModalMenu, setShowModalMenu] = useState(false);
+
+  const toggleBottomNav = (val) => {
+    setShowBottomNav(val);
+    localStorage.setItem("show_bottom_nav", String(val));
+  };
+
+  useEffect(() => {
+    if (setor && user?.email) {
+      getDoc(doc(db, `users/${user.email}/setores/${setor}/config`, "loja_config")).then(snap => {
+        setModoLojaAtivo(snap.exists() && snap.data().modoLoja === true);
+      }).catch(() => setModoLojaAtivo(false));
+    } else {
+      setModoLojaAtivo(false);
+    }
+  }, [setor, user]);
+
+  useEffect(() => {
+    const handleLojaChange = () => {
+      if (setor && user?.email) {
+        getDoc(doc(db, `users/${user.email}/setores/${setor}/config`, "loja_config")).then(snap => {
+          setModoLojaAtivo(snap.exists() && snap.data().modoLoja === true);
+        });
+      }
+    };
+    window.addEventListener("lojaConfigChanged", handleLojaChange);
+    return () => window.removeEventListener("lojaConfigChanged", handleLojaChange);
+  }, [setor, user]);
+
+function BaixarAppsView() {
+  return (
+    <div className="animate-fade-in">
+      <div className="page-hd">
+        <div className="page-title">APLICATIVOS MOBILE</div>
+        <div className="page-sub">Baixe os aplicativos oficiais para Android (.apk)</div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+        {/* App ADM Card */}
+        <div className="table-card" style={{ padding: 24, borderRadius: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="package" size={24} color="var(--success)" />
+            </div>
+            <div>
+              <div style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1 }}>SYS ADM</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)" }}>Painel de Gestão & Estoque</div>
+            </div>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--text-mid)", lineHeight: 1.5 }}>
+            Aplicativo completo para administradores e gerentes. Permite cadastrar produtos, gerenciar setores, aprovar requisições e consultar estoques.
+          </p>
+          <a
+            href="/Baixar/SystemStock adm.apk"
+            download
+            className="btn btn-success btn-lg"
+            style={{ width: "100%", textDecoration: "none", marginTop: "auto" }}
+          >
+            <Icon name="download" size={18} /> BAIXAR APP ADMIN (.APK)
+          </a>
+        </div>
+
+        {/* App User / Requisições Card */}
+        <div className="table-card" style={{ padding: 24, borderRadius: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(59, 130, 246, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="clipboardList" size={24} color="var(--info)" />
+            </div>
+            <div>
+              <div style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1 }}>SYS REQUISIÇÃO</div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)" }}>Solicitação de Materiais</div>
+            </div>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--text-mid)", lineHeight: 1.5 }}>
+            Aplicativo para funcionários e solicitantes efetuarem pedidos de materiais para seus respectivos setores com ID e Senha de acesso.
+          </p>
+          <a
+            href="/Baixar/SystemStock User.apk"
+            download
+            className="btn btn-accent btn-lg"
+            style={{ width: "100%", textDecoration: "none", marginTop: "auto" }}
+          >
+            <Icon name="download" size={18} /> BAIXAR APP REQUISIÇÕES (.APK)
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   const logout = async () => {
     await signOut(auth);
     setUser(null); setSetor(null); setTab("dashboard");
@@ -1866,7 +1925,34 @@ export default function App() {
   const back = () => { setSetor(null); setTab("dashboard"); setProducts([]); setPendingReqs(0); };
   const s = setor ? resolveSetor(setor) : null;
 
-  const navItems = [
+  // Lista Principal de Nav (Sidebar)
+  const allNavItems = [
+    { id: "dashboard",   icon: "home",          label: "Home" },
+    { id: "entrada",     icon: "arrowUp",       label: "Entrada" },
+    { id: "saida",       icon: "arrowDown",     label: "Saída" },
+    { id: "requisicoes", icon: "clipboardList", label: "Pedidos", badge: pendingReqs > 0 ? pendingReqs : null },
+    { id: "inventario",  icon: "package",       label: "Estoque" },
+    { id: "criar_pc",    icon: "plus",          label: "Criar P/C" },
+    { id: "analytics",   icon: "barChart",      label: "Analytics" },
+    { id: "setores",     icon: "layers",        label: "Gestor dos Setores" },
+    { id: "log",         icon: "fileText",      label: "Log" },
+    { id: "config",      icon: "settings",      label: "Configurações" },
+    { id: "apps",        icon: "download",      label: "Apps Mobile" },
+  ];
+
+  if (modoLojaAtivo) {
+    allNavItems.push({ id: "config_caixa", icon: "store", label: "Config. Caixa (POS)" });
+  }
+
+  const navGroups = [
+    { group: "GERAL", items: [allNavItems[0]] },
+    { group: "MOVIMENTAÇÃO", items: [allNavItems[1], allNavItems[2], allNavItems[3]] },
+    { group: "CATÁLOGO & ESTOQUE", items: [allNavItems[4], allNavItems[5], allNavItems[6]] },
+    { group: "GESTÃO & SISTEMA", items: [allNavItems[7], allNavItems[8], allNavItems[9], allNavItems[10], ...(modoLojaAtivo ? [allNavItems[11]] : [])] },
+  ];
+
+  // Itens estritamente principais da Barra Inferior (Mobile)
+  const bottomNavItems = [
     { id: "dashboard",   icon: "home",          label: "Home" },
     { id: "entrada",     icon: "arrowUp",       label: "Entrada" },
     { id: "saida",       icon: "arrowDown",     label: "Saída" },
@@ -1876,12 +1962,18 @@ export default function App() {
     { id: "log",         icon: "fileText",      label: "Log" },
     { id: "config",      icon: "settings",      label: "Config" },
   ];
-  const navGroups = [
-    { group: "GERAL",     items: [navItems[0]] },
-    { group: "MOVIMENT.", items: [navItems[1], navItems[2], navItems[3]] },
-    { group: "CONTROLE",  items: [navItems[4], navItems[5]] },
-    { group: "SISTEMA",   items: [navItems[6], navItems[7]] },
-  ];
+
+  const handleNavClick = (itemId) => {
+    if (itemId === "config_caixa") {
+      setTab("config");
+      setConfigSubTab("loja");
+    } else {
+      setTab(itemId);
+      if (itemId === "config") setConfigSubTab("empresa");
+    }
+    if (itemId === "requisicoes") loadPendingReqs(setor);
+    setShowModalMenu(false);
+  };
 
   if (!user) return <><style>{styles}</style><div className={`app ${theme}`}><LoginScreen onLogin={setUser} theme={theme} toggleTheme={toggleTheme} /><Toast toasts={toasts} /></div></>;
 
@@ -1922,68 +2014,138 @@ export default function App() {
         <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ bottom: "-15%", right: "-15%", animationDelay: "-11s", width: "550px", height: "550px" }}></video>
 
         <header className="header" style={{ position: "relative", zIndex: 2 }}>
-          <div className="header-logo">SystemStocker</div>
-          <div className="header-right">
-            <button onClick={toggleTheme} className="hbtn" style={{ borderRadius: "50%", width: 32, height: 32, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }} aria-label="Toggle Theme">
-              {theme === "light" ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
-              )}
+          <div className="header-logo">
+            <button onClick={() => setShowModalMenu(true)} className="sidebar-toggle-btn mobile-only-btn" title="Abrir Menu Flutuante" style={{ marginRight: 8, width: 34, height: 34, borderRadius: 10 }}>
+              <Icon name="menu" size={18} />
             </button>
-
-            {/* ADM VERDE */}
-            <a href="/Baixar/index804521.html" className="hbtn" style={{ textDecoration: "none", borderColor: "var(--success)", color: "var(--success)" }}>
-              ⬇ APP ADM
-            </a>
-
-            {/*USER VERMELHO */}
-            <a href="/Baixar/user.html" className="hbtn" style={{ textDecoration: "none", borderColor: "var(--danger)", color: "var(--danger)" }}>
-              ⬇ App USER
-            </a>
-
+            <Icon name="package" size={20} color="var(--accent)" /> <span style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 2 }}>SYS</span>
+          </div>
+          <div className="header-right">
             <span className="header-email">{user.email}</span>
-            <button className="hbtn danger" onClick={logout}><Icon name="logout" size={14} /> SAIR</button>
+            <button className="hbtn danger" onClick={logout} title="Sair da Conta" style={{ padding: "8px", borderRadius: "8px" }}><Icon name="logout" size={16} /></button>
           </div>
         </header>
         <div style={{ position: "relative", zIndex: 2, flex: 1, display: "flex", flexDirection: "column" }}>
           <SetorScreen user={user} sectors={sectors} loading={loadingSectors} onSelect={selectSetor} onRefreshSectors={loadSectors} />
         </div>
       </div>
+
+      {/* MODAL SIDEBAR NA TELA DE SELEÇÃO DE SETOR */}
+      {showModalMenu && (
+        <div className="modal-sidebar-overlay" onClick={e => e.target === e.currentTarget && setShowModalMenu(false)}>
+          <div className="modal-sidebar-card">
+            <div className="modal-sidebar-header">
+              <div className="modal-sidebar-brand">
+                <div className="modal-sidebar-logo-icon">
+                  <Icon name="package" size={22} color="var(--accent)" />
+                </div>
+                <div>
+                  <div className="modal-sidebar-title">SYS</div>
+                  <div className="modal-sidebar-sub">Seleção de Setor</div>
+                </div>
+              </div>
+              <button className="modal-sidebar-close" onClick={() => setShowModalMenu(false)} title="Fechar Menu">
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <div className="modal-nav-group">
+                <div className="modal-nav-group-title">Menu Geral</div>
+                <button className="modal-nav-item active" onClick={() => setShowModalMenu(false)}>
+                  <span className="modal-nav-item-icon"><Icon name="grid" size={18} /></span>
+                  <span>Seleção de Setores</span>
+                </button>
+              </div>
+
+              {/* ABA APPS UNIFICADA */}
+              <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                <div className="modal-nav-group-title">APLICATIVOS (.APK)</div>
+                <a href="/Baixar/SystemStock adm.apk" download className="modal-nav-item">
+                  <span className="modal-nav-item-icon"><Icon name="download" size={18} color="var(--success)" /></span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>App Administrador</div>
+                    <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Gestão & Estoque</div>
+                  </div>
+                </a>
+                <a href="/Baixar/SystemStock User.apk" download className="modal-nav-item">
+                  <span className="modal-nav-item-icon"><Icon name="download" size={18} color="var(--info)" /></span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>App Requisições</div>
+                    <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Solicitantes</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 6 }}>
+              <button className="modal-nav-item" onClick={() => { toggleTheme(); setShowModalMenu(false); }}>
+                <span className="modal-nav-item-icon"><Icon name={theme === "light" ? "moon" : "sun"} size={18} /></span>
+                <span>Tema {theme === "light" ? "Escuro" : "Claro"}</span>
+              </button>
+              <button className="modal-nav-item" style={{ color: "var(--danger)" }} onClick={() => { setShowModalMenu(false); logout(); }}>
+                <span className="modal-nav-item-icon"><Icon name="logout" size={18} /></span>
+                <span>Sair da Conta</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast toasts={toasts} /></>
   );
+
+  const getActiveNavId = () => {
+    if (tab === "config") {
+      if (configSubTab === "loja") return "config_caixa";
+      return "config";
+    }
+    return tab;
+  };
+
+  const activeNavId = getActiveNavId();
 
   return (
     <><style>{styles}</style>
       <div className={`app ${theme}`}>
         <header className="header">
-          <div className="header-logo" style={{ fontSize: 16 }}>Sys - <span className="setor-tag" style={{ borderColor: s.color, color: s.color, marginLeft: 6 }}>{s.label}</span></div>
-          <div className="header-right">
-            <button onClick={toggleTheme} className="hbtn" style={{ borderRadius: "50%", width: 32, height: 32, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }} aria-label="Toggle Theme">
-              {theme === "light" ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
-              )}
+          <div className="header-logo" style={{ fontSize: 16 }}>
+            <button onClick={() => setShowModalMenu(true)} className="sidebar-toggle-btn mobile-only-btn" title="Abrir Menu Flutuante" style={{ marginRight: 8, width: 34, height: 34, borderRadius: 10 }}>
+              <Icon name="menu" size={18} />
             </button>
-            <button className="hbtn danger" onClick={back}><Icon name="logout" size={14} /> SAIR</button>
+            <span style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 2 }}>SYS</span> <span className="setor-tag" style={{ borderColor: s.color, color: s.color, marginLeft: 6 }}>{s.label}</span>
+          </div>
+          <div className="header-right">
+            <button className="hbtn danger" onClick={back} title="Sair do Setor" style={{ padding: "8px", borderRadius: "8px" }}><Icon name="logout" size={16} /></button>
           </div>
         </header>
         <div className="main-layout">
-          <nav className="sidebar">
+          <nav className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
             <div className="sidebar-setor">
-              <div className="sidebar-setor-label">Setor ativo</div>
-              <div className="sidebar-setor-name" style={{ color: s.color }}><Icon name={s.iconName || "package"} size={18} color={s.color} /> {s.label}</div>
+              <div>
+                {!sidebarCollapsed && <div className="sidebar-setor-label">Setor Ativo</div>}
+                <div className="sidebar-setor-name" style={{ color: s.color }}>
+                  <Icon name={s.iconName || "package"} size={18} color={s.color} />
+                  {!sidebarCollapsed && <span>{s.label}</span>}
+                </div>
+              </div>
+              <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="sidebar-toggle-btn" title={sidebarCollapsed ? "Expandir" : "Recolher"}>
+                <Icon name={sidebarCollapsed ? "chevronRight" : "chevronLeft"} size={14} />
+              </button>
             </div>
             <div className="sidebar-nav">
               {navGroups.map(g => (
                 <div key={g.group}>
                   <div className="sidebar-group">{g.group}</div>
                   {g.items.map(item => (
-                    <div key={item.id} className={`sitem ${tab === item.id ? "active" : ""}`}
-                      onClick={() => { setTab(item.id); if (item.id === "requisicoes") loadPendingReqs(setor); }}>
-                      <span className="sitem-icon"><Icon name={item.icon} size={15} /></span>
-                      {item.label}
+                    <div
+                      key={item.id}
+                      className={`sitem ${activeNavId === item.id ? "active" : ""}`}
+                      title={sidebarCollapsed ? item.label : undefined}
+                      onClick={() => handleNavClick(item.id)}
+                    >
+                      <span className="sitem-icon"><Icon name={item.icon} size={16} /></span>
+                      <span className="sitem-label">{item.label}</span>
                       {item.badge && <span className="sitem-badge">{item.badge}</span>}
                     </div>
                   ))}
@@ -1991,7 +2153,7 @@ export default function App() {
               ))}
             </div>
           </nav>
-          <main className="content">
+          <main className="content animate-fade-in" key={tab + "-" + configSubTab}>
             {loadingP
               ? <div className="empty"><span className="spinner" style={{ width: 28, height: 28, borderWidth: 3 }} /></div>
               : <>
@@ -2000,24 +2162,122 @@ export default function App() {
                 {tab === "saida" && <Saida setor={setor} onRefresh={() => { loadProducts(setor); }} addToast={addToast} user={user} />}
                 {tab === "requisicoes" && <GestaoRequisicoes setor={setor} user={user} addToast={addToast} />}
                 {tab === "inventario" && <Inventario setor={setor} products={products} onDelete={() => loadProducts(setor)} addToast={addToast} thresh={thresh} />}
+                {tab === "criar_pc"   && (
+                  <ConfigProdutosCategorias
+                    setor={setor}
+                    user={user}
+                    addToast={addToast}
+                    resolveSetor={resolveSetor}
+                    getCol={getCol}
+                    registrarLog={registrarLog}
+                    db={db}
+                  />
+                )}
                 {tab === "analytics" && <Analytics setor={setor} products={products} sectorObj={s} onRefresh={() => loadProducts(setor)} addToast={addToast} />}
+                {tab === "setores"   && (
+                  <ConfigSetores
+                    user={user}
+                    addToast={addToast}
+                    resolveSetor={resolveSetor}
+                  />
+                )}
                 {tab === "log"        && <LogCompleto setor={setor} addToast={addToast} />}
-                {tab === "config"     && <Configuracoes setor={setor} user={user} addToast={addToast} thresh={thresh} onThreshChange={t => setThresh(t)} resolveSetor={resolveSetor} getCol={getCol} registrarLog={registrarLog} db={db} />}
+                {tab === "apps"       && <BaixarAppsView />}
+                {tab === "config"     && (
+                  <Configuracoes
+                    setor={setor}
+                    user={user}
+                    addToast={addToast}
+                    thresh={thresh}
+                    onThreshChange={t => setThresh(t)}
+                    resolveSetor={resolveSetor}
+                    getCol={getCol}
+                    registrarLog={registrarLog}
+                    db={db}
+                    initialSubTab={configSubTab}
+                    showBottomNav={showBottomNav}
+                    onToggleBottomNav={toggleBottomNav}
+                  />
+                )}
               </>}
           </main>
         </div>
-        <nav className="bottom-nav">
-          <div className="bottom-nav-inner">
-            {navItems.map(item => (
-              <div key={item.id} className={`bnav-item ${tab === item.id ? "active" : ""}`}
-                onClick={() => { setTab(item.id); if (item.id === "requisicoes") loadPendingReqs(setor); }}>
-                <span className="bnav-icon"><Icon name={item.icon} size={22} />{item.badge && <span className="bnav-dot" />}</span>
-                <span className="bnav-label">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </nav>
+
+        {/* BARRA INFERIOR FIXA (Exibida no mobile APENAS se ativada nas configurações) */}
+        {showBottomNav && (
+          <nav className="bottom-nav" style={{ display: "block" }}>
+            <div className="bottom-nav-inner">
+              {bottomNavItems.map(item => (
+                <div key={item.id} className={`bnav-item ${tab === item.id ? "active" : ""}`}
+                  onClick={() => handleNavClick(item.id)}>
+                  <span className="bnav-icon"><Icon name={item.icon} size={20} />{item.badge && <span className="bnav-dot" />}</span>
+                  <span className="bnav-label">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </nav>
+        )}
       </div>
-      <Toast toasts={toasts} /></>
+
+      {/* ══════════ MODAL FLUTUANTE DE NAVEGAÇÃO (ESTILO DESIGNER TV) ══════════ */}
+      {showModalMenu && (
+        <div className="modal-sidebar-overlay" onClick={e => e.target === e.currentTarget && setShowModalMenu(false)}>
+          <div className="modal-sidebar-card">
+            <div className="modal-sidebar-header">
+              <div className="modal-sidebar-brand">
+                <div className="modal-sidebar-logo-icon">
+                  <Icon name="package" size={22} color="var(--accent)" />
+                </div>
+                <div>
+                  <div className="modal-sidebar-title">SYS</div>
+                  <div className="modal-sidebar-sub">Setor: {s?.label || "Geral"}</div>
+                </div>
+              </div>
+              <button className="modal-sidebar-close" onClick={() => setShowModalMenu(false)} title="Fechar Menu">
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {navGroups.map(g => (
+                <div key={g.group} className="modal-nav-group">
+                  <div className="modal-nav-group-title">{g.group}</div>
+                  {g.items.map(item => (
+                    <button
+                      key={item.id}
+                      className={`modal-nav-item ${activeNavId === item.id ? "active" : ""}`}
+                      onClick={() => handleNavClick(item.id)}
+                    >
+                      <span className="modal-nav-item-icon">
+                        <Icon name={item.icon} size={18} />
+                      </span>
+                      <span>{item.label}</span>
+                      {item.badge && <span className="modal-nav-badge">{item.badge}</span>}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 6 }}>
+              <button className="modal-nav-item" onClick={() => { toggleTheme(); setShowModalMenu(false); }}>
+                <span className="modal-nav-item-icon">
+                  <Icon name={theme === "light" ? "moon" : "sun"} size={18} />
+                </span>
+                <span>Tema {theme === "light" ? "Escuro" : "Claro"}</span>
+              </button>
+              <button className="modal-nav-item" style={{ color: "var(--danger)" }} onClick={() => { setShowModalMenu(false); back(); }}>
+                <span className="modal-nav-item-icon">
+                  <Icon name="logout" size={18} />
+                </span>
+                <span>Sair do Setor</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast toasts={toasts} />
+    </>
   );
 }
