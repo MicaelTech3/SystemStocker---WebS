@@ -37,6 +37,11 @@
   --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e8f0;
+  --sidebar-hover: #f1f5f9;
+  --sidebar-text: #0f172a;
+  --sidebar-text-dim: #64748b;
 }
 
 .dark {
@@ -51,6 +56,11 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 14px rgba(0,0,0,0.4);
   --shadow-lg: 0 10px 25px rgba(0,0,0,0.5);
+  --sidebar-bg: #070a10;
+  --sidebar-border: #1e293b;
+  --sidebar-hover: #151d2a;
+  --sidebar-text: #f8fafc;
+  --sidebar-text-dim: #94a3b8;
 }
 
 html, body {
@@ -186,8 +196,8 @@ html, body {
 }
 
 .modal-sidebar-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border2);
+  background: var(--sidebar-bg);
+  border: 1.5px solid var(--sidebar-border);
   border-radius: 24px;
   width: 100%;
   max-width: 320px;

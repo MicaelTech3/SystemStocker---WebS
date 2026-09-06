@@ -46,6 +46,8 @@ const styles = `
   :root {
     --bg:#f5f2e9; --surface:#ffffff; --surface2:#e9e4d4;
     --border:#dfd9c4; --border2:#ccc4a8;
+    --sidebar-bg:#ffffff; --sidebar-border:#dfd9c4; --sidebar-hover:#f1ede2;
+    --sidebar-text:#292524; --sidebar-text-dim:#78716c;
     --accent:#f97316; --accent2:#ea580c;
     --success:#10b981; --danger:#ef4444; --info:#3b82f6; --warn:#f59e0b;
     --text:#292524; --text-dim:#78716c; --text-mid:#57534e;
@@ -55,6 +57,8 @@ const styles = `
   .dark {
     --bg:#0c0a09; --surface:#1c1917; --surface2:#292524;
     --border:#2e2a28; --border2:#3f3a37;
+    --sidebar-bg:#070a10; --sidebar-border:#1e293b; --sidebar-hover:#151d2a;
+    --sidebar-text:#fafaf9; --sidebar-text-dim:#a8a29e;
     --text:#fafaf9; --text-dim:#a8a29e; --text-mid:#d6d3d1;
   }
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -71,17 +75,17 @@ const styles = `
   .hbtn.danger:hover,.hbtn.danger:active { border-color:var(--danger); color:var(--danger); }
   .header-email { font-family:var(--mono); font-size:11px; color:var(--text-dim); }
   .main-layout { display:flex; flex:1; overflow:hidden; }
-  .sidebar { width:240px; background:var(--surface); border:1.5px solid var(--border2); border-radius:24px; margin:14px 0 14px 14px; height:calc(100vh - var(--header-h) - 28px); height:calc(100dvh - var(--header-h) - 28px); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.06); transition:width 0.28s cubic-bezier(0.16,1,0.3,1), margin 0.28s cubic-bezier(0.16,1,0.3,1); }
+  .sidebar { width:240px; background:var(--sidebar-bg); border:1.5px solid var(--sidebar-border); border-radius:24px; margin:14px 0 14px 14px; height:calc(100vh - var(--header-h) - 28px); height:calc(100dvh - var(--header-h) - 28px); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:width 0.28s cubic-bezier(0.16,1,0.3,1), margin 0.28s cubic-bezier(0.16,1,0.3,1), background 0.25s, border-color 0.25s; }
   .sidebar.collapsed { width:72px; }
-  .sidebar-setor { padding:16px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; overflow:hidden; }
-  .sidebar-setor-label { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
+  .sidebar-setor { padding:16px 14px; border-bottom:1px solid var(--sidebar-border); display:flex; align-items:center; justify-content:space-between; overflow:hidden; }
+  .sidebar-setor-label { font-family:var(--mono); font-size:9px; color:var(--sidebar-text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
   .sidebar-setor-name { font-family:var(--display); font-size:20px; letter-spacing:2px; display:flex; align-items:center; gap:7px; white-space:nowrap; }
   .sidebar-nav { padding:10px 0; flex:1; display:flex; flex-direction:column; gap:2px; }
-  .sidebar-group { padding:10px 14px 4px; font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; white-space:nowrap; overflow:hidden; }
+  .sidebar-group { padding:10px 14px 4px; font-family:var(--mono); font-size:9px; color:var(--sidebar-text-dim); letter-spacing:2px; text-transform:uppercase; white-space:nowrap; overflow:hidden; }
   .sidebar.collapsed .sidebar-group { opacity:0; height:4px; padding:0; }
-  .sitem { display:flex; align-items:center; gap:12px; padding:10px 14px; margin:3px 10px; border-radius:14px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--text-mid); background:transparent; border:1.5px solid transparent; cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); white-space:nowrap; position:relative; }
+  .sitem { display:flex; align-items:center; gap:12px; padding:10px 14px; margin:3px 10px; border-radius:14px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--sidebar-text); background:transparent; border:1.5px solid transparent; cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); white-space:nowrap; position:relative; }
   .sidebar.collapsed .sitem { margin:3px 8px; padding:10px; justify-content:center; }
-  .sitem:hover { background:var(--surface2); color:var(--text); }
+  .sitem:hover { background:var(--sidebar-hover); color:var(--sidebar-text); }
   .sitem.active { border-color:var(--accent); background:var(--accent-light); color:var(--accent); font-weight:600; }
   .sitem-icon { width:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .sitem-label { transition:opacity 0.2s, max-width 0.2s; overflow:hidden; text-overflow:ellipsis; }
@@ -1932,6 +1936,7 @@ function BaixarAppsView() {
     { id: "saida",       icon: "arrowDown",     label: "Saída" },
     { id: "requisicoes", icon: "clipboardList", label: "Pedidos", badge: pendingReqs > 0 ? pendingReqs : null },
     { id: "inventario",  icon: "package",       label: "Estoque" },
+    { id: "caixas",      icon: "store",         label: "Monitoramento Caixas" },
     { id: "criar_pc",    icon: "plus",          label: "Criar P/C" },
     { id: "analytics",   icon: "barChart",      label: "Analytics" },
     { id: "setores",     icon: "layers",        label: "Gestor dos Setores" },
@@ -1941,14 +1946,14 @@ function BaixarAppsView() {
   ];
 
   if (modoLojaAtivo) {
-    allNavItems.push({ id: "config_caixa", icon: "store", label: "Config. Caixa (POS)" });
+    allNavItems.push({ id: "config_caixa", icon: "settings", label: "Config. POS (Caixa)" });
   }
 
   const navGroups = [
     { group: "GERAL", items: [allNavItems[0]] },
     { group: "MOVIMENTAÇÃO", items: [allNavItems[1], allNavItems[2], allNavItems[3]] },
-    { group: "CATÁLOGO & ESTOQUE", items: [allNavItems[4], allNavItems[5], allNavItems[6]] },
-    { group: "GESTÃO & SISTEMA", items: [allNavItems[7], allNavItems[8], allNavItems[9], allNavItems[10], ...(modoLojaAtivo ? [allNavItems[11]] : [])] },
+    { group: "CATÁLOGO & ESTOQUE", items: [allNavItems[4], allNavItems[5], allNavItems[6], allNavItems[7]] },
+    { group: "GESTÃO & SISTEMA", items: [allNavItems[8], allNavItems[9], allNavItems[10], allNavItems[11], ...(modoLojaAtivo ? [allNavItems[12]] : [])] },
   ];
 
   // Itens estritamente principais da Barra Inferior (Mobile)
@@ -1956,15 +1961,18 @@ function BaixarAppsView() {
     { id: "dashboard",   icon: "home",          label: "Home" },
     { id: "entrada",     icon: "arrowUp",       label: "Entrada" },
     { id: "saida",       icon: "arrowDown",     label: "Saída" },
+    { id: "caixas",      icon: "store",         label: "Caixas" },
     { id: "requisicoes", icon: "clipboardList", label: "Pedidos", badge: pendingReqs > 0 ? pendingReqs : null },
     { id: "inventario",  icon: "package",       label: "Estoque" },
     { id: "analytics",   icon: "barChart",      label: "Analytics" },
-    { id: "log",         icon: "fileText",      label: "Log" },
     { id: "config",      icon: "settings",      label: "Config" },
   ];
 
   const handleNavClick = (itemId) => {
-    if (itemId === "config_caixa") {
+    if (itemId === "caixas") {
+      setTab("config");
+      setConfigSubTab("caixas");
+    } else if (itemId === "config_caixa") {
       setTab("config");
       setConfigSubTab("loja");
     } else {
@@ -2097,6 +2105,7 @@ function BaixarAppsView() {
 
   const getActiveNavId = () => {
     if (tab === "config") {
+      if (configSubTab === "caixas") return "caixas";
       if (configSubTab === "loja") return "config_caixa";
       return "config";
     }

@@ -815,22 +815,35 @@ export default function Caixa() {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [fase, posTab, caixaAberto]);
 
-  // Handle Sector PIN verification
+  // Handle Sector & Operator PIN verification
   const handlePinPress = async (num) => {
     if (pinError) return;
     const val = pinValue + num;
     setPinValue(val);
-    if (val.length === 4) {
+    if (val.length >= 4) {
       try {
         const docSnap = await getDoc(doc(db, getCol(selectedSector.id, "config"), "requisicao_config"));
         const realPin = docSnap.exists() ? (docSnap.data().pin || "") : "";
-        if (!realPin || val === realPin) {
-          addToast(`Acessando Caixa do setor ${selectedSector.label}...`, "success");
+
+        let isMatch = (!realPin || val === realPin);
+        let opName = "Administrador / Setor";
+
+        if (!isMatch) {
+          const opSnap = await getDocs(query(collection(db, getCol(selectedSector.id, "caixa_operadores")), where("pin", "==", val), where("ativo", "==", true)));
+          if (!opSnap.empty) {
+            isMatch = true;
+            opName = opSnap.docs[0].data().nome;
+          }
+        }
+
+        if (isMatch) {
+          addToast(`Acessando Caixa — ${opName}...`, "success");
           localStorage.setItem("caixa_cached_sector_id", selectedSector.id);
           localStorage.setItem("caixa_cached_pin", val);
+          localStorage.setItem("caixa_operator_name", opName);
           setFase("pos");
           setPinValue("");
-        } else {
+        } else if (val.length >= 4) {
           setPinError(true);
           setTimeout(() => {
             setPinValue("");
@@ -856,12 +869,17 @@ export default function Caixa() {
   // Open cashier register
   const handleOpenCaixa = async () => {
     setLoadingCaixa(true);
+    const loggedOp = localStorage.getItem("caixa_operator_name") || "Caixa POS";
     try {
       const info = {
         aberto: true,
         abertoEm: new Date().toISOString(),
-        saldoInicial: Number(saldoAbertura) || 0,
-        operador: "Caixa POS"
+        saldoAbertura: Number(saldoAbertura) || 0,
+        operadorNome: loggedOp,
+        totalVendasDinheiro: 0,
+        totalVendasPix: 0,
+        totalVendasCartao: 0,
+        totalVendasFiado: 0
       };
       await setDoc(doc(db, getCol(selectedSector.id, "caixa_status"), "atual"), info);
       setCaixaInfo(info);
@@ -871,9 +889,9 @@ export default function Caixa() {
       // Log opening
       await addDoc(collection(db, getCol(selectedSector.id, "log")), {
         tipo: "abertura",
-        descricao: `Caixa Aberto. Saldo Inicial: R$ ${Number(saldoAbertura).toFixed(2)}`,
+        descricao: `Caixa Aberto por ${loggedOp}. Saldo Inicial: R$ ${Number(saldoAbertura).toFixed(2)}`,
         ts: serverTimestamp(),
-        usuario: "Caixa POS"
+        usuario: loggedOp
       });
 
       addToast("Caixa aberto com sucesso!", "success");
@@ -963,9 +981,27 @@ export default function Caixa() {
 
     try {
       const clientFinalName = payMethod === "Fiado" ? selectedFiador.nome : (clientName.trim() || "Consumidor Final");
+      const loggedOp = localStorage.getItem("caixa_operator_name") || "Caixa POS";
+      const notaNum = "N-" + String(Date.now()).slice(-6);
+
       // Save Sale document
       const saleData = {
+        numeroNota: notaNum,
         cliente: clientFinalName,
+        operadorNome: loggedOp,
+        formaPagamento: payMethod,
+        metodoPagamento: payMethod,
+        items: cart.map(i => {
+          const itemPrice = parsePrice(i.precoVenda);
+          return {
+            id: i.id,
+            nome: i.nome,
+            qtd: i.quantity,
+            quantity: i.quantity,
+            precoVenda: itemPrice,
+            subtotal: i.quantity * itemPrice
+          };
+        }),
         itens: cart.map(i => {
           const itemPrice = parsePrice(i.precoVenda);
           return {
@@ -977,8 +1013,8 @@ export default function Caixa() {
           };
         }),
         total: cartTotal,
-        metodoPagamento: payMethod,
         timestamp: new Date().toISOString(),
+        criadoEm: new Date().toISOString(),
         caixaFechado: false
       };
 
@@ -988,6 +1024,12 @@ export default function Caixa() {
 
       // Add Sale to sales collection
       await addDoc(collection(db, getCol(selectedSector.id, "vendas")), saleData);
+
+      // Update live status totals for monitoring
+      const statusField = payMethod === "Dinheiro" ? "totalVendasDinheiro" : payMethod === "PIX" ? "totalVendasPix" : payMethod === "Cartão" ? "totalVendasCartao" : "totalVendasFiado";
+      updateDoc(doc(db, getCol(selectedSector.id, "caixa_status"), "atual"), {
+        [statusField]: increment(cartTotal)
+      }).catch(e => console.error("Error updating live status:", e));
 
       // Decrement inventory quantities in Firebase
       for (const item of cart) {
@@ -1012,9 +1054,9 @@ export default function Caixa() {
       // Create log entry
       await addDoc(collection(db, getCol(selectedSector.id, "log")), {
         tipo: "venda",
-        descricao: `Venda finalizada: R$ ${cartTotal.toFixed(2)} (${payMethod}) - Cliente: ${saleData.cliente}`,
+        descricao: `Venda ${notaNum} finalizada: R$ ${cartTotal.toFixed(2)} (${payMethod}) - Cliente: ${saleData.cliente}`,
         ts: serverTimestamp(),
-        usuario: "Caixa POS"
+        usuario: loggedOp
       });
 
       addToast("Venda finalizada com sucesso!", "success");
@@ -1033,15 +1075,19 @@ export default function Caixa() {
 
   // Close shift
   const handleCloseShift = async () => {
+    const loggedOp = localStorage.getItem("caixa_operator_name") || "Caixa POS";
     try {
       const totalRev = sessionSales.reduce((sum, s) => sum + s.total, 0);
+      const totalCashSales = sessionSales.filter(s => (s.formaPagamento || s.metodoPagamento) === "Dinheiro").reduce((sum, s) => sum + s.total, 0);
+      const saldoInicial = caixaInfo?.saldoAbertura || 0;
+      const saldoFinal = saldoInicial + totalCashSales;
 
       // Log closure
       await addDoc(collection(db, getCol(selectedSector.id, "log")), {
         tipo: "fechamento",
-        descricao: `Caixa Fechado. Turno finalizado com ${sessionSales.length} vendas. Faturamento: R$ ${totalRev.toFixed(2)}`,
+        descricao: `Caixa Fechado por ${loggedOp}. Turno finalizado com ${sessionSales.length} vendas. Faturamento: R$ ${totalRev.toFixed(2)}. Saldo Final Caixa: R$ ${saldoFinal.toFixed(2)}`,
         ts: serverTimestamp(),
-        usuario: "Caixa POS"
+        usuario: loggedOp
       });
 
       // Mark all sales in shift as closed
@@ -1051,9 +1097,12 @@ export default function Caixa() {
       // Close cashier register state in DB
       await setDoc(doc(db, getCol(selectedSector.id, "caixa_status"), "atual"), {
         aberto: false,
+        saldoAbertura: saldoInicial,
+        saldoFechamento: saldoFinal,
         fechadoEm: new Date().toISOString(),
-        ultimoFaturamento: totalRev
-      });
+        ultimoFaturamento: totalRev,
+        operadorNome: loggedOp
+      }, { merge: true });
 
       addToast("Caixa fechado com sucesso!", "success");
       setSessionSales([]);

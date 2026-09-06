@@ -11,6 +11,7 @@ import {
   query, where, updateDoc, serverTimestamp, getDoc,
 } from "firebase/firestore";
 import { Icon } from "./icons.jsx";
+import { ConfigCaixasAdmin } from "./ConfigCaixas.jsx";
 
 // ─── Helpers ─────────────────────────────────────────────────
 const getCol = (setor, type) => {
@@ -1211,7 +1212,8 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
 
   const mainTabs = [
     { id: "empresa", icon: "building", label: "Empresa & Acesso App" },
-    { id: "loja", icon: "store", label: "Módulo Loja (POS)" },
+    { id: "caixas", icon: "store", label: "Monitoramento de Caixas" },
+    { id: "loja", icon: "settings", label: "Config. POS (Caixa)" },
     { id: "estoque", icon: "barChart", label: "Limites de Alerta" },
   ];
 
@@ -1238,6 +1240,10 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
 
       {/* Conteúdo da Aba Selecionada */}
       {configSubTab === "empresa" && <ConfigEmpresa user={user} addToast={addToast} showBottomNav={showBottomNav} onToggleBottomNav={onToggleBottomNav} />}
+
+      {configSubTab === "caixas" && (
+        <ConfigCaixasAdmin user={user} setor={setor} addToast={addToast} resolveSetor={resolveSetor} />
+      )}
 
       {configSubTab === "loja" && (
         <div className="card hover-lift animate-slide-up">
