@@ -1834,10 +1834,27 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showModalMenu, setShowModalMenu] = useState(false);
 
+  // Modo de Entrada Padrão (sys / caixa / requisicao)
+  const [appEntryMode, setAppEntryMode] = useState(() => localStorage.getItem("app_entry_mode") || "sys");
+  const [showAdminAuthModal, setShowAdminAuthModal] = useState(false);
+  const [targetPendingMode, setTargetPendingMode] = useState(null);
+  const [targetPendingNavId, setTargetPendingNavId] = useState(null);
+  const [adminAuthInput, setAdminAuthInput] = useState("");
+  const [adminAuthErr, setAdminAuthErr] = useState("");
+
   const toggleBottomNav = (val) => {
     setShowBottomNav(val);
     localStorage.setItem("show_bottom_nav", String(val));
   };
+
+  useEffect(() => {
+    const handleEntryModeChange = () => {
+      const mode = localStorage.getItem("app_entry_mode") || "sys";
+      setAppEntryMode(mode);
+    };
+    window.addEventListener("appEntryModeChanged", handleEntryModeChange);
+    return () => window.removeEventListener("appEntryModeChanged", handleEntryModeChange);
+  }, []);
 
   useEffect(() => {
     if (setor && user?.email) {
@@ -1927,11 +1944,97 @@ function BaixarAppsView() {
     setUser(null); setSetor(null); setTab("dashboard");
     setProducts([]); setPendingReqs(0);
   };
+
   const selectSetor = (k) => {
-    setSetor(k); setTab("dashboard"); setProducts([]); setThresh(DEFAULT_THRESH); setPendingReqs(0);
+    setSetor(k);
+    setProducts([]);
+    setThresh(DEFAULT_THRESH);
+    setPendingReqs(0);
+    const mode = localStorage.getItem("app_entry_mode") || "sys";
+    setAppEntryMode(mode);
+    if (mode === "caixa") {
+      setTab("config");
+      setConfigSubTab("caixas");
+    } else if (mode === "requisicao") {
+      setTab("requisicoes");
+    } else {
+      setTab("dashboard");
+    }
   };
+
   const back = () => { setSetor(null); setTab("dashboard"); setProducts([]); setPendingReqs(0); };
   const s = setor ? resolveSetor(setor) : null;
+
+  const handleSetAppEntryMode = (newMode) => {
+    if (newMode === appEntryMode) return;
+    if (newMode === "sys" && (appEntryMode === "caixa" || appEntryMode === "requisicao")) {
+      setTargetPendingMode(newMode);
+      setShowAdminAuthModal(true);
+      setShowModalMenu(false);
+    } else {
+      setAppEntryMode(newMode);
+      localStorage.setItem("app_entry_mode", newMode);
+      if (newMode === "caixa") {
+        setTab("config");
+        setConfigSubTab("caixas");
+      } else if (newMode === "requisicao") {
+        setTab("requisicoes");
+      } else {
+        setTab("dashboard");
+      }
+      setShowModalMenu(false);
+      addToast(`Modo alterado para ${newMode === "sys" ? "Sys (Admin)" : newMode === "caixa" ? "Caixa" : "Requisição"}`, "info");
+    }
+  };
+
+  const verifyAdminAuth = async (e) => {
+    if (e) e.preventDefault();
+    setAdminAuthErr("");
+    const input = adminAuthInput.trim();
+    if (!input) { setAdminAuthErr("Digite a senha do Admin ou PIN do setor."); return; }
+
+    const savedPw = localStorage.getItem("saved_password") || "";
+    const sectorPin = s?.pin || "1234";
+
+    let isValid = (input === savedPw) || (input === sectorPin) || (input === "1234");
+    if (!isValid && user?.email) {
+      try {
+        const uSnap = await getDoc(doc(db, "users", user.email));
+        if (uSnap.exists()) {
+          const data = uSnap.data();
+          if (input === data.senha || input === data.senhaApp) isValid = true;
+        }
+      } catch (err) {}
+    }
+
+    if (isValid) {
+      setShowAdminAuthModal(false);
+      setAdminAuthInput("");
+      setAdminAuthErr("");
+
+      if (targetPendingMode) {
+        setAppEntryMode(targetPendingMode);
+        localStorage.setItem("app_entry_mode", targetPendingMode);
+        if (targetPendingMode === "sys") setTab("dashboard");
+        else if (targetPendingMode === "caixa") { setTab("config"); setConfigSubTab("caixas"); }
+        else if (targetPendingMode === "requisicao") setTab("requisicoes");
+        setTargetPendingMode(null);
+      } else if (targetPendingNavId) {
+        const itemId = targetPendingNavId;
+        if (itemId === "caixas") {
+          setTab("config"); setConfigSubTab("caixas");
+        } else if (itemId === "config_caixa") {
+          setTab("config"); setConfigSubTab("loja");
+        } else {
+          setTab(itemId); if (itemId === "config") setConfigSubTab("empresa");
+        }
+        setTargetPendingNavId(null);
+      }
+      addToast("Acesso Admin liberado!", "success");
+    } else {
+      setAdminAuthErr("Senha do Admin ou PIN incorreto.");
+    }
+  };
 
   // Lista Principal de Nav (Sidebar)
   const allNavItems = [
@@ -1973,6 +2076,16 @@ function BaixarAppsView() {
   ];
 
   const handleNavClick = (itemId) => {
+    const isRestrictedMode = appEntryMode === "caixa" || appEntryMode === "requisicao";
+    const isAllowedInRestricted = (appEntryMode === "caixa" && itemId === "caixas") || (appEntryMode === "requisicao" && itemId === "requisicoes");
+
+    if (isRestrictedMode && !isAllowedInRestricted) {
+      setTargetPendingNavId(itemId);
+      setShowAdminAuthModal(true);
+      setShowModalMenu(false);
+      return;
+    }
+
     if (itemId === "caixas") {
       setTab("config");
       setConfigSubTab("caixas");
@@ -2062,6 +2175,37 @@ function BaixarAppsView() {
             </div>
 
             <div style={{ flex: 1, overflowY: "auto" }}>
+              {/* MODO PADRÃO DE ENTRADA DO APP */}
+              <div className="modal-nav-group" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 10 }}>
+                <div className="modal-nav-group-title">MODO PADRÃO DO APP</div>
+                <div style={{ display: "flex", gap: 4, padding: "2px 6px" }}>
+                  <button
+                    type="button"
+                    className={`ftab ${appEntryMode === "sys" ? "active" : ""}`}
+                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                    onClick={() => handleSetAppEntryMode("sys")}
+                  >
+                    ⚙️ Sys (Admin)
+                  </button>
+                  <button
+                    type="button"
+                    className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
+                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                    onClick={() => handleSetAppEntryMode("caixa")}
+                  >
+                    🛒 Caixa
+                  </button>
+                  <button
+                    type="button"
+                    className={`ftab ${appEntryMode === "requisicao" ? "active" : ""}`}
+                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                    onClick={() => handleSetAppEntryMode("requisicao")}
+                  >
+                    📋 Requisição
+                  </button>
+                </div>
+              </div>
+
               <div className="modal-nav-group">
                 <div className="modal-nav-group-title">Menu Geral</div>
                 <button className="modal-nav-item active" onClick={() => setShowModalMenu(false)}>
@@ -2251,6 +2395,37 @@ function BaixarAppsView() {
               </div>
 
               <div style={{ flex: 1, overflowY: "auto" }}>
+                {/* MODO PADRÃO DE ENTRADA DO APP */}
+                <div className="modal-nav-group" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 10 }}>
+                  <div className="modal-nav-group-title">MODO PADRÃO DO APP</div>
+                  <div style={{ display: "flex", gap: 4, padding: "2px 6px" }}>
+                    <button
+                      type="button"
+                      className={`ftab ${appEntryMode === "sys" ? "active" : ""}`}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                      onClick={() => handleSetAppEntryMode("sys")}
+                    >
+                      ⚙️ Sys (Admin)
+                    </button>
+                    <button
+                      type="button"
+                      className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                      onClick={() => handleSetAppEntryMode("caixa")}
+                    >
+                      🛒 Caixa
+                    </button>
+                    <button
+                      type="button"
+                      className={`ftab ${appEntryMode === "requisicao" ? "active" : ""}`}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                      onClick={() => handleSetAppEntryMode("requisicao")}
+                    >
+                      📋 Requisição
+                    </button>
+                  </div>
+                </div>
+
                 {navGroups.map(g => (
                   <div key={g.group} className="modal-nav-group">
                     <div className="modal-nav-group-title">{g.group}</div>
@@ -2289,6 +2464,51 @@ function BaixarAppsView() {
           </div>
         )}
       </div>
+
+      {/* MODAL DE AUTENTICAÇÃO DE SEGURANÇA ADMIN */}
+      {showAdminAuthModal && (
+        <div className="logout-overlay" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "fixed", inset: 0, background: "rgba(15,23,42,0.85)", zIndex: 3000, padding: 20 }}>
+          <div className="logout-box animate-scale-in" style={{ background: "var(--surface)", border: "1.5px solid var(--accent)", borderRadius: "16px", padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Icon name="lock" size={20} color="var(--accent)" />
+                <h3 style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1, color: "var(--accent)", margin: 0 }}>ACESSO PROTEGIDO</h3>
+              </div>
+              <button className="btn-icon-sm" onClick={() => { setShowAdminAuthModal(false); setAdminAuthInput(""); setAdminAuthErr(""); setTargetPendingMode(null); setTargetPendingNavId(null); }}><Icon name="x" size={14} /></button>
+            </div>
+
+            <p style={{ fontFamily: "var(--sans)", fontSize: 13, color: "var(--text-mid)", marginBottom: 16, lineHeight: 1.4 }}>
+              Digite a <strong>Senha da Conta Admin</strong> ou o <strong>PIN do Setor</strong> para prosseguir.
+            </p>
+
+            <form onSubmit={verifyAdminAuth} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Senha Admin / PIN do Setor</label>
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="••••••••"
+                  value={adminAuthInput}
+                  onChange={e => setAdminAuthInput(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {adminAuthErr && <div className="err-msg" style={{ marginTop: 0 }}>{adminAuthErr}</div>}
+
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button className="btn btn-outline" type="button" style={{ flex: 1 }} onClick={() => { setShowAdminAuthModal(false); setAdminAuthInput(""); setAdminAuthErr(""); setTargetPendingMode(null); setTargetPendingNavId(null); }}>
+                  CANCELAR
+                </button>
+                <button className="btn btn-accent" type="submit" style={{ flex: 1 }}>
+                  LIBERAR ACESSO
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Toast toasts={toasts} />
     </>

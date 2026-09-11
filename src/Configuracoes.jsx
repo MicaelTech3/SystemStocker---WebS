@@ -169,10 +169,64 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
     addToast(`${label} copiado!`, "success");
   };
 
+  const [entryMode, setEntryMode] = useState(() => localStorage.getItem("app_entry_mode") || "sys");
+
+  const changeEntryMode = (mode) => {
+    setEntryMode(mode);
+    localStorage.setItem("app_entry_mode", mode);
+    window.dispatchEvent(new Event("appEntryModeChanged"));
+    addToast(`Modo de Entrada alterado para: ${mode === "sys" ? "Sys (Admin)" : mode === "caixa" ? "Caixa (POS)" : "Requisição"}.`, "success");
+  };
+
   if (loading) return <div style={{ padding: 30, textAlign: "center" }}><span className="spinner" /></div>;
 
   return (
     <div className="animate-slide-up">
+      {/* Modo Padrão de Entrada do App */}
+      <div className="card hover-lift" style={{ marginBottom: 16 }}>
+        <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon name="layers" size={20} color="var(--accent)" /> MODO PADRÃO DE ENTRADA DO APP
+        </div>
+        <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 14 }}>
+          Escolha como o aplicativo deve inicializar por padrão em cada abertura.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
+          <button
+            type="button"
+            className={`btn ${entryMode === "sys" ? "btn-accent" : "btn-outline"}`}
+            style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto" }}
+            onClick={() => changeEntryMode("sys")}
+          >
+            <Icon name="home" size={22} color={entryMode === "sys" ? "#000" : "var(--accent)"} />
+            <span style={{ fontWeight: 700, fontSize: 13 }}>Sys (Admin)</span>
+            <span style={{ fontSize: 9, opacity: 0.8 }}>(Padrão Geral)</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn ${entryMode === "caixa" ? "btn-accent" : "btn-outline"}`}
+            style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto" }}
+            onClick={() => changeEntryMode("caixa")}
+          >
+            <Icon name="store" size={22} color={entryMode === "caixa" ? "#000" : "var(--success)"} />
+            <span style={{ fontWeight: 700, fontSize: 13 }}>Caixa (POS)</span>
+            <span style={{ fontSize: 9, opacity: 0.8 }}>(Frente de Caixa)</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn ${entryMode === "requisicao" ? "btn-accent" : "btn-outline"}`}
+            style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto" }}
+            onClick={() => changeEntryMode("requisicao")}
+          >
+            <Icon name="clipboardList" size={22} color={entryMode === "requisicao" ? "#000" : "var(--info)"} />
+            <span style={{ fontWeight: 700, fontSize: 13 }}>Requisição</span>
+            <span style={{ fontSize: 9, opacity: 0.8 }}>(Solicitantes)</span>
+          </button>
+        </div>
+      </div>
+
       {/* Dados Principais */}
       <div className="card hover-lift" style={{ marginBottom: 16 }}>
         <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
