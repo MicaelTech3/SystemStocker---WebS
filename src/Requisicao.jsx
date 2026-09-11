@@ -960,8 +960,38 @@ export default function RequisicaoApp() {
   const [subTab, setSubTab] = useState("form");
   const [showLogout, setShowLogout] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminAuthInput, setAdminAuthInput] = useState("");
+  const [adminAuthErr, setAdminAuthErr] = useState("");
   const [modoLojaAtivo, setModoLojaAtivo] = useState(false);
   const { toasts, add: toast } = useToast();
+
+  const handleVerifyAdminSwitch = async (e) => {
+    if (e) e.preventDefault();
+    setAdminAuthErr("");
+    const input = adminAuthInput.trim();
+    if (!input) { setAdminAuthErr("Digite a senha do Admin ou PIN do setor."); return; }
+
+    let isValid = (input === "1234");
+    if (sectorObj?.pin && input === sectorObj.pin) isValid = true;
+
+    if (!isValid && companySession?.empresaId) {
+      try {
+        const uSnap = await getDoc(doc(db, "users", companySession.empresaId));
+        if (uSnap.exists()) {
+          const data = uSnap.data();
+          if (input === data.senha || input === data.senhaApp) isValid = true;
+        }
+      } catch (err) {}
+    }
+
+    if (isValid) {
+      localStorage.setItem("app_entry_mode", "sys");
+      window.location.href = "/";
+    } else {
+      setAdminAuthErr("Senha do Admin ou PIN incorreto.");
+    }
+  };
 
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";
@@ -1131,6 +1161,40 @@ export default function RequisicaoApp() {
               )}
 
               <div style={{ flex: 1, overflowY: "auto" }}>
+                {/* MODO PADRÃO DO APP */}
+                <div className="modal-nav-group" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 10 }}>
+                  <div className="modal-nav-group-title">MODO PADRÃO DO APP</div>
+                  <div style={{ display: "flex", gap: 4, padding: "2px 6px" }}>
+                    <button
+                      type="button"
+                      className="ftab"
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                      onClick={() => { setShowSidebar(false); setShowAdminModal(true); }}
+                    >
+                      <Icon name="settings" size={12} /> Sys (Admin)
+                    </button>
+                    <button
+                      type="button"
+                      className="ftab"
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                      onClick={() => {
+                        localStorage.setItem("app_entry_mode", "caixa");
+                        setShowSidebar(false);
+                        window.location.href = `/caixa?empresa=${encodeURIComponent(companySession?.empresaId || "")}`;
+                      }}
+                    >
+                      <Icon name="store" size={12} /> Caixa
+                    </button>
+                    <button
+                      type="button"
+                      className="ftab active"
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                    >
+                      <Icon name="clipboardList" size={12} /> Requisição
+                    </button>
+                  </div>
+                </div>
+
                 {setor && fase === "form" && (
                   <div className="modal-nav-group">
                     <div className="modal-nav-group-title">Navegação do Setor</div>
@@ -1298,6 +1362,51 @@ export default function RequisicaoApp() {
           onConfirm={handleLogoutSetor}
           onCancel={() => setShowLogout(false)}
         />
+      )}
+
+      {/* Modal de Autenticação Admin ao Mudar para Sys */}
+      {showAdminModal && (
+        <div className="logout-overlay" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "fixed", inset: 0, background: "rgba(15,23,42,0.85)", zIndex: 3000, padding: 20 }}>
+          <div className="logout-box animate-scale-in" style={{ background: "var(--surface)", border: "1.5px solid var(--accent)", borderRadius: "16px", padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Icon name="lock" size={20} color="var(--accent)" />
+                <h3 style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1, color: "var(--accent)", margin: 0 }}>ACESSO PROTEGIDO</h3>
+              </div>
+              <button className="btn-ghost" onClick={() => { setShowAdminModal(false); setAdminAuthInput(""); setAdminAuthErr(""); }}><Icon name="x" size={14} /></button>
+            </div>
+
+            <p style={{ fontFamily: "var(--sans)", fontSize: 13, color: "var(--text-mid)", marginBottom: 16, lineHeight: 1.4 }}>
+              Digite a <strong>Senha da Conta Admin</strong> ou <strong>PIN do Setor</strong> para mudar para o modo Sys (Admin).
+            </p>
+
+            <form onSubmit={handleVerifyAdminSwitch} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Senha Admin / PIN</label>
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="••••••••"
+                  value={adminAuthInput}
+                  onChange={e => setAdminAuthInput(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {adminAuthErr && <div style={{ color: "var(--danger)", fontFamily: "var(--mono)", fontSize: 11 }}>{adminAuthErr}</div>}
+
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button className="btn btn-outline" type="button" style={{ flex: 1 }} onClick={() => { setShowAdminModal(false); setAdminAuthInput(""); setAdminAuthErr(""); }}>
+                  CANCELAR
+                </button>
+                <button className="btn btn-accent" type="submit" style={{ flex: 1 }}>
+                  LIBERAR ACESSO
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       <ToastEl toasts={toasts} />

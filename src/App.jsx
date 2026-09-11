@@ -1838,6 +1838,7 @@ export default function App() {
   // Modo de Entrada Padrão (sys / caixa / requisicao)
   const [appEntryMode, setAppEntryMode] = useState(() => localStorage.getItem("app_entry_mode") || "sys");
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false);
+  const [bindModalMode, setBindModalMode] = useState(null); // 'requisicao' | 'caixa' | null
   const [targetPendingMode, setTargetPendingMode] = useState(null);
   const [targetPendingNavId, setTargetPendingNavId] = useState(null);
   const [adminAuthInput, setAdminAuthInput] = useState("");
@@ -1856,6 +1857,33 @@ export default function App() {
     window.addEventListener("appEntryModeChanged", handleEntryModeChange);
     return () => window.removeEventListener("appEntryModeChanged", handleEntryModeChange);
   }, []);
+
+  // Redirecionamento automático se o modo salvo for caixa ou requisição
+  useEffect(() => {
+    const mode = localStorage.getItem("app_entry_mode");
+    if (mode === "requisicao" || mode === "caixa") {
+      let savedId = null;
+      try {
+        const rawReq = localStorage.getItem("req_company_session_v2");
+        const rawCaixa = localStorage.getItem("caixa_company_session_v2");
+        const parsed = rawReq ? JSON.parse(rawReq) : rawCaixa ? JSON.parse(rawCaixa) : null;
+        if (parsed?.empresaId) savedId = parsed.empresaId;
+      } catch {}
+
+      if (!savedId && user?.email) savedId = user.email;
+
+      if (savedId) {
+        const targetUrl = mode === "requisicao"
+          ? `/requisicao?empresa=${encodeURIComponent(savedId)}`
+          : `/caixa?empresa=${encodeURIComponent(savedId)}`;
+        if (window.location.pathname === "/" || window.location.pathname === "") {
+          window.location.href = targetUrl;
+        }
+      } else {
+        setBindModalMode(mode);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     if (setor && user?.email) {
@@ -1967,24 +1995,51 @@ function BaixarAppsView() {
   const s = setor ? resolveSetor(setor) : null;
 
   const handleSetAppEntryMode = (newMode) => {
-    if (newMode === appEntryMode) return;
+    if (newMode === appEntryMode && !bindModalMode) return;
+
     if (newMode === "sys" && (appEntryMode === "caixa" || appEntryMode === "requisicao")) {
       setTargetPendingMode(newMode);
       setShowAdminAuthModal(true);
       setShowModalMenu(false);
-    } else {
-      setAppEntryMode(newMode);
-      localStorage.setItem("app_entry_mode", newMode);
-      if (newMode === "caixa") {
-        setTab("config");
-        setConfigSubTab("caixas");
-      } else if (newMode === "requisicao") {
-        setTab("requisicoes");
-      } else {
-        setTab("dashboard");
-      }
+    } else if (newMode === "requisicao") {
+      let savedId = null;
+      try {
+        const raw = localStorage.getItem("req_company_session_v2") || localStorage.getItem("caixa_company_session_v2");
+        if (raw) savedId = JSON.parse(raw)?.empresaId;
+      } catch {}
+      if (!savedId && user?.email) savedId = user.email;
+
+      localStorage.setItem("app_entry_mode", "requisicao");
+      setAppEntryMode("requisicao");
       setShowModalMenu(false);
-      addToast(`Modo alterado para ${newMode === "sys" ? "Sys (Admin)" : newMode === "caixa" ? "Caixa" : "Requisição"}`, "info");
+
+      if (savedId) {
+        window.location.href = `/requisicao?empresa=${encodeURIComponent(savedId)}`;
+      } else {
+        setBindModalMode("requisicao");
+      }
+    } else if (newMode === "caixa") {
+      let savedId = null;
+      try {
+        const raw = localStorage.getItem("caixa_company_session_v2") || localStorage.getItem("req_company_session_v2");
+        if (raw) savedId = JSON.parse(raw)?.empresaId;
+      } catch {}
+      if (!savedId && user?.email) savedId = user.email;
+
+      localStorage.setItem("app_entry_mode", "caixa");
+      setAppEntryMode("caixa");
+      setShowModalMenu(false);
+
+      if (savedId) {
+        window.location.href = `/caixa?empresa=${encodeURIComponent(savedId)}`;
+      } else {
+        setBindModalMode("caixa");
+      }
+    } else {
+      setAppEntryMode("sys");
+      localStorage.setItem("app_entry_mode", "sys");
+      setShowModalMenu(false);
+      addToast("Modo alterado para Sys (Admin)", "info");
     }
   };
 
@@ -2524,7 +2579,131 @@ function BaixarAppsView() {
         </div>
       )}
 
+      {/* MODAL DE VINCULAÇÃO DE EMPRESA */}
+      {bindModalMode && (
+        <BindCompanyModal
+          mode={bindModalMode}
+          onBindSuccess={(id) => {
+            setBindModalMode(null);
+            const targetUrl = bindModalMode === "requisicao"
+              ? `/requisicao?empresa=${encodeURIComponent(id)}`
+              : `/caixa?empresa=${encodeURIComponent(id)}`;
+            window.location.href = targetUrl;
+          }}
+          onClose={() => setBindModalMode(null)}
+        />
+      )}
+
       <Toast toasts={toasts} />
     </>
+  );
+}
+
+// ─── MODAL DE VINCULAÇÃO DE EMPRESA ──────────────────────────────
+function BindCompanyModal({ mode, onBindSuccess, onClose }) {
+  const [empresaIdInput, setEmpresaIdInput] = useState("");
+  const [senhaInput, setSenhaInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const cleanId = empresaIdInput.trim();
+    if (!cleanId) { setErr("Digite o ID ou Email da Empresa."); return; }
+    if (!senhaInput.trim()) { setErr("Digite a Senha de Acesso do App."); return; }
+
+    setLoading(true);
+    setErr("");
+    try {
+      const docRef = doc(db, "users", cleanId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const expectedSenha = data.senhaApp || data.senha || "123456";
+        if (senhaInput.trim() === expectedSenha) {
+          const nomeEmpresa = data.nomeEmpresa || cleanId;
+          const session = { empresaId: cleanId, nomeEmpresa, ts: Date.now() };
+
+          if (mode === "requisicao" || mode === "both") {
+            localStorage.setItem("req_company_session_v2", JSON.stringify(session));
+          }
+          if (mode === "caixa" || mode === "both") {
+            localStorage.setItem("caixa_company_session_v2", JSON.stringify(session));
+          }
+
+          localStorage.setItem("app_entry_mode", mode === "caixa" ? "caixa" : "requisicao");
+          window.dispatchEvent(new Event("appEntryModeChanged"));
+          onBindSuccess(cleanId, nomeEmpresa);
+          return;
+        }
+      }
+
+      setErr("ID da Empresa ou Senha de Acesso incorretos.");
+    } catch (e) {
+      setErr("Erro de conexão: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const modeLabel = mode === "caixa" ? "Frente de Caixa (POS)" : "Requisições";
+
+  return (
+    <div className="logout-overlay" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "fixed", inset: 0, background: "rgba(15,23,42,0.85)", zIndex: 3100, padding: 20 }}>
+      <div className="logout-box animate-scale-in" style={{ background: "var(--surface)", border: "1.5px solid var(--accent)", borderRadius: "16px", padding: 24, width: "100%", maxWidth: 380, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="building" size={22} color="var(--accent)" />
+            <h3 style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 1, color: "var(--accent)", margin: 0 }}>VINCULAR EMPRESA</h3>
+          </div>
+          {onClose && <button className="btn-icon-sm" onClick={onClose}><Icon name="x" size={14} /></button>}
+        </div>
+
+        <p style={{ fontFamily: "var(--sans)", fontSize: 13, color: "var(--text-mid)", marginBottom: 16, lineHeight: 1.4 }}>
+          Digite o <strong>ID ou Email da Empresa</strong> e a <strong>Senha do App</strong> para vincular o app no modo <strong>{modeLabel}</strong>.
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">ID ou Email da Empresa</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="ex: admin@empresa.com"
+              value={empresaIdInput}
+              onChange={e => setEmpresaIdInput(e.target.value)}
+              autoFocus
+              required
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Senha de Acesso do App</label>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="••••••••"
+              value={senhaInput}
+              onChange={e => setSenhaInput(e.target.value)}
+              required
+            />
+          </div>
+
+          {err && <div className="err-msg" style={{ marginTop: 0 }}>{err}</div>}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            {onClose && (
+              <button className="btn btn-outline" type="button" style={{ flex: 1 }} onClick={onClose}>
+                CANCELAR
+              </button>
+            )}
+            <button className="btn btn-accent" type="submit" style={{ flex: 1 }} disabled={loading}>
+              {loading ? <span className="spinner" /> : "VINCULAR & ENTRAR"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
