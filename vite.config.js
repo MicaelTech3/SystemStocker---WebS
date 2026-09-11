@@ -3,10 +3,14 @@ import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     basicSsl()
   ],
+  build: {
+    target: ['chrome74', 'es2015']
+  },
   server: {
     https: true,
     host: true
