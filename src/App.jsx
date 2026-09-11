@@ -61,9 +61,10 @@ const styles = `
     --sidebar-text:#fafaf9; --sidebar-text-dim:#a8a29e;
     --text:#fafaf9; --text-dim:#a8a29e; --text-mid:#d6d3d1;
   }
-  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html { -webkit-text-size-adjust:100%; }
-  body { background:var(--bg); color:var(--text); font-family:var(--sans); transition: background 0.25s, color 0.25s; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); transition: background 0.25s, color 0.25s; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+  input, textarea, select { -webkit-user-select:text; user-select:text; }
   ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
   .app { min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); }
   .header { background:var(--surface); border-bottom:1px solid var(--border); height:var(--header-h); display:flex; align-items:center; justify-content:space-between; padding:0 16px; position:sticky; top:0; z-index:200; flex-shrink:0; }
@@ -918,15 +919,15 @@ function SetorScreen({ user, sectors, loading, onSelect, onRefreshSectors }) {
   ];
 
   const icons = [
-    { value: "package", label: "📦 Pacote" },
-    { value: "monitor", label: "🖥️ Monitor" },
-    { value: "utensils", label: "🍽️ Talheres" },
-    { value: "sparkles", label: "✨ Brilhos" },
-    { value: "tools", label: "🔧 Ferramentas" },
-    { value: "hammer", label: "🔨 Martelo" },
-    { value: "tag", label: "🎟️ Etiqueta" },
-    { value: "cpu", label: "💻 Processador" },
-    { value: "grid", label: "📊 Grade" }
+    { value: "package", label: "Pacote / Estoque" },
+    { value: "monitor", label: "Monitor / TI" },
+    { value: "utensils", label: "Talheres / Alimentação" },
+    { value: "sparkles", label: "Brilhos / Limpeza" },
+    { value: "tools", label: "Manutenção / Ferramentas" },
+    { value: "hammer", label: "Obras / Martelo" },
+    { value: "tag", label: "Etiquetas / Vendas" },
+    { value: "cpu", label: "Hardware / Tecnologia" },
+    { value: "grid", label: "Geral / Matriz" }
   ];
 
   return (
@@ -2132,6 +2133,13 @@ function BaixarAppsView() {
     );
   }
 
+  const handleRefreshApp = () => {
+    addToast("Atualizando aplicativo...", "info");
+    setTimeout(() => {
+      window.location.reload(true);
+    }, 300);
+  };
+
   if (!setor) return (
     <><style>{styles}</style>
       <div className={`app ${theme}`} style={{ position: "relative", overflow: "hidden" }}>
@@ -2147,6 +2155,9 @@ function BaixarAppsView() {
           </div>
           <div className="header-right">
             <span className="header-email">{user.email}</span>
+            <button className="hbtn" onClick={handleRefreshApp} title="Atualizar Versão do App" style={{ padding: "7px 10px", borderRadius: "8px", color: "var(--accent)" }}>
+              <Icon name="refreshCw" size={14} /> ATUALIZAR
+            </button>
             <button className="hbtn danger" onClick={logout} title="Sair da Conta" style={{ padding: "8px", borderRadius: "8px" }}><Icon name="logout" size={16} /></button>
           </div>
         </header>
@@ -2182,26 +2193,26 @@ function BaixarAppsView() {
                   <button
                     type="button"
                     className={`ftab ${appEntryMode === "sys" ? "active" : ""}`}
-                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
                     onClick={() => handleSetAppEntryMode("sys")}
                   >
-                    ⚙️ Sys (Admin)
+                    <Icon name="settings" size={12} /> Sys (Admin)
                   </button>
                   <button
                     type="button"
                     className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
-                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
                     onClick={() => handleSetAppEntryMode("caixa")}
                   >
-                    🛒 Caixa
+                    <Icon name="store" size={12} /> Caixa
                   </button>
                   <button
                     type="button"
                     className={`ftab ${appEntryMode === "requisicao" ? "active" : ""}`}
-                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
                     onClick={() => handleSetAppEntryMode("requisicao")}
                   >
-                    📋 Requisição
+                    <Icon name="clipboardList" size={12} /> Requisição
                   </button>
                 </div>
               </div>
@@ -2273,6 +2284,9 @@ function BaixarAppsView() {
             <span style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 2 }}>SYS</span> <span className="setor-tag" style={{ borderColor: s.color, color: s.color, marginLeft: 6 }}>{s.label}</span>
           </div>
           <div className="header-right">
+            <button className="hbtn" onClick={handleRefreshApp} title="Atualizar Versão do App" style={{ padding: "7px 10px", borderRadius: "8px", color: "var(--accent)" }}>
+              <Icon name="refreshCw" size={14} /> ATUALIZAR
+            </button>
             <button className="hbtn danger" onClick={back} title="Sair do Setor" style={{ padding: "8px", borderRadius: "8px" }}><Icon name="logout" size={16} /></button>
           </div>
         </header>
@@ -2402,26 +2416,26 @@ function BaixarAppsView() {
                     <button
                       type="button"
                       className={`ftab ${appEntryMode === "sys" ? "active" : ""}`}
-                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
                       onClick={() => handleSetAppEntryMode("sys")}
                     >
-                      ⚙️ Sys (Admin)
+                      <Icon name="settings" size={12} /> Sys (Admin)
                     </button>
                     <button
                       type="button"
                       className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
-                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
                       onClick={() => handleSetAppEntryMode("caixa")}
                     >
-                      🛒 Caixa
+                      <Icon name="store" size={12} /> Caixa
                     </button>
                     <button
                       type="button"
                       className={`ftab ${appEntryMode === "requisicao" ? "active" : ""}`}
-                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px" }}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
                       onClick={() => handleSetAppEntryMode("requisicao")}
                     >
-                      📋 Requisição
+                      <Icon name="clipboardList" size={12} /> Requisição
                     </button>
                   </div>
                 </div>
