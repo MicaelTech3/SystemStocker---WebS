@@ -445,6 +445,9 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
   // Sector Users state
   const [sectorUsersList, setSectorUsersList] = useState([]);
   const [newSectorUser, setNewSectorUser] = useState("");
+  const [newUserLoginId, setNewUserLoginId] = useState("");
+  const [newUserSenha, setNewUserSenha] = useState("");
+  const [showUserSenha, setShowUserSenha] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
   const [sectorCategoriesList, setSectorCategoriesList] = useState([]);
   const [editingUserPresetId, setEditingUserPresetId] = useState(null);
@@ -592,26 +595,50 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
 
   const handleAddSectorUser = async () => {
     const nome = newSectorUser.trim();
+    const loginId = newUserLoginId.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    const senha = newUserSenha.trim();
     if (!nome || !selectedSectorUsers) return;
+    if (!loginId) { addToast("Digite um ID de login para o usuário.", "error"); return; }
+    if (loginId.length < 3) { addToast("O ID de login deve ter pelo menos 3 caracteres.", "error"); return; }
+    if (!senha || senha.length < 4) { addToast("A senha deve ter pelo menos 4 caracteres.", "error"); return; }
     if (sectorUsersList.some(u => u.nome.toLowerCase() === nome.toLowerCase())) {
       addToast("Usuário já cadastrado neste setor.", "error"); return;
     }
+    // Verificar conflito de loginId globalmente
+    const idxSnap = await getDoc(doc(db, "req_user_ids", loginId));
+    if (idxSnap.exists() && idxSnap.data().email !== user.email) {
+      addToast(`O ID de login "${loginId}" já está em uso por outra empresa.`, "error"); return;
+    }
+    if (sectorUsersList.some(u => u.loginId === loginId)) {
+      addToast(`O ID "${loginId}" já está em uso neste setor.`, "error"); return;
+    }
     setSavingUser(true);
     try {
-      await addDoc(collection(db, `users/${user.email}/setores/${selectedSectorUsers.id}/req_usuarios`), {
-        nome, criadoEm: serverTimestamp()
+      const docRef = await addDoc(collection(db, `users/${user.email}/setores/${selectedSectorUsers.id}/req_usuarios`), {
+        nome, loginId, senha, criadoEm: serverTimestamp()
+      });
+      // Índice global: loginId → empresa + setor
+      await setDoc(doc(db, "req_user_ids", loginId), {
+        email: user.email,
+        setorKey: selectedSectorUsers.id,
+        userId: docRef.id,
+        nome
       });
       addToast(`"${nome}" adicionado ao setor!`, "success");
       setNewSectorUser("");
+      setNewUserLoginId("");
+      setNewUserSenha("");
       loadSectorUsers(selectedSectorUsers.id);
     } catch (e) { addToast("Erro ao adicionar usuário: " + e.message, "error"); }
     finally { setSavingUser(false); }
   };
 
-  const handleDeleteSectorUser = async (userId) => {
-    if (!selectedSectorUsers || !confirm("Remover este usuário do setor?")) return;
+  const handleDeleteSectorUser = async (u) => {
+    if (!selectedSectorUsers || !confirm(`Remover "${u.nome}" do setor?`)) return;
     try {
-      await deleteDoc(doc(db, `users/${user.email}/setores/${selectedSectorUsers.id}/req_usuarios`, userId));
+      await deleteDoc(doc(db, `users/${user.email}/setores/${selectedSectorUsers.id}/req_usuarios`, u.id));
+      // Remove índice global
+      if (u.loginId) { try { await deleteDoc(doc(db, "req_user_ids", u.loginId)); } catch {} }
       addToast("Usuário removido.", "success");
       loadSectorUsers(selectedSectorUsers.id);
     } catch (e) { addToast("Erro: " + e.message, "error"); }
@@ -806,74 +833,134 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
       {/* Modal de Usuários / Operadores do Setor */}
       {selectedSectorUsers && (
         <div className="logout-overlay" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 1000, padding: 20 }}>
-          <div className="logout-box animate-scale-in" style={{ background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: "var(--r)", padding: 24, width: "100%", maxWidth: 450 }}>
+          <div className="logout-box animate-scale-in" style={{ background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: "var(--r)", padding: 24, width: "100%", maxWidth: 480 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div>
                 <h3 style={{ fontFamily: "var(--display)", fontSize: 22, letterSpacing: 1, color: selectedSectorUsers.color || "var(--accent)" }}>
-                  OPERADORES — {selectedSectorUsers.label}
+                  USUÁRIOS — {selectedSectorUsers.label}
                 </h3>
                 <span style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--text-dim)" }}>
-                  Usuários autorizados para requisições neste setor
+                  Cada usuário tem ID e senha únicos para login direto na Requisição
                 </span>
               </div>
               <button className="btn-icon-sm" onClick={() => setSelectedSectorUsers(null)}><Icon name="x" size={14} /></button>
             </div>
 
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <input
-                className="form-input"
-                placeholder="Nome / Email do operador..."
-                value={newSectorUser}
-                onChange={e => setNewSectorUser(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAddSectorUser()}
-                style={{ flex: 1 }}
-              />
-              <button className="btn btn-accent" onClick={handleAddSectorUser} disabled={savingUser || !newSectorUser.trim()}>
-                <Icon name="plus" size={16} />
-              </button>
+            {/* Formulário de criação */}
+            <div style={{ background: "var(--surface2)", borderRadius: "var(--r)", border: "1px solid var(--border)", padding: "14px", marginBottom: 14 }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>
+                Novo Usuário
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input
+                  className="form-input"
+                  placeholder="Nome completo do usuário"
+                  value={newSectorUser}
+                  onChange={e => setNewSectorUser(e.target.value)}
+                  style={{ fontSize: 13 }}
+                />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div>
+                    <input
+                      className="form-input"
+                      placeholder="ID de login (ex: joao123)"
+                      value={newUserLoginId}
+                      onChange={e => setNewUserLoginId(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ""))}
+                      style={{ fontFamily: "var(--mono)", fontSize: 13, letterSpacing: 0.5 }}
+                      maxLength={32}
+                    />
+                    <div style={{ fontSize: 9, color: "var(--text-dim)", fontFamily: "var(--mono)", marginTop: 3 }}>Único, mín. 3 chars</div>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      className="form-input"
+                      type={showUserSenha ? "text" : "password"}
+                      placeholder="Senha (mín. 4 chars)"
+                      value={newUserSenha}
+                      onChange={e => setNewUserSenha(e.target.value)}
+                      style={{ fontFamily: "var(--mono)", fontSize: 13, paddingRight: 36 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserSenha(v => !v)}
+                      style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-dim)", display: "flex" }}
+                    >
+                      <Icon name={showUserSenha ? "eyeOff" : "eye"} size={14} />
+                    </button>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-accent"
+                  onClick={handleAddSectorUser}
+                  disabled={savingUser || !newSectorUser.trim() || !newUserLoginId.trim() || !newUserSenha.trim()}
+                  style={{ alignSelf: "flex-start", padding: "9px 20px" }}
+                >
+                  {savingUser ? <span className="spinner" /> : <><Icon name="plus" size={15} /> Adicionar Usuário</>}
+                </button>
+              </div>
             </div>
 
-            <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Lista de usuários */}
+            <div style={{ maxHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
               {sectorUsersList.length === 0 ? (
                 <div style={{ fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", textAlign: "center", padding: "16px 0" }}>
-                  Nenhum operador individual cadastrado. O acesso será via PIN do setor.
+                  Nenhum usuário cadastrado. Crie o primeiro acima.
                 </div>
               ) : (
                 sectorUsersList.map(u => {
                   const allowed = u.allowedCategories || [];
                   const isEditingPreset = editingUserPresetId === u.id;
                   return (
-                    <div key={u.id} style={{ background: "var(--surface2)", borderRadius: "var(--r)", border: "1px solid var(--border)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div>
-                          <span style={{ fontSize: 13, fontFamily: "var(--mono)", fontWeight: 600 }}>{u.nome}</span>
-                          <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: allowed.length > 0 ? "var(--accent)" : "var(--text-dim)", marginTop: 2 }}>
-                            {allowed.length > 0 ? `Filtro: ${allowed.join(", ")}` : "Acesso Total (Todas as Categorias)"}
+                    <div key={u.id} style={{ background: "var(--surface2)", borderRadius: "var(--r)", border: "1px solid var(--border)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontFamily: "var(--sans)", fontWeight: 600 }}>{u.nome}</div>
+                          <div style={{ display: "flex", gap: 10, marginTop: 3, flexWrap: "wrap" }}>
+                            {u.loginId && (
+                              <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", background: "rgba(249,115,22,.1)", padding: "1px 7px", borderRadius: 6 }}>
+                                ID: {u.loginId}
+                              </span>
+                            )}
+                            {u.senha && (
+                              <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)", background: "var(--surface)", padding: "1px 7px", borderRadius: 6 }}>
+                                Senha: {"•".repeat(u.senha.length)}
+                              </span>
+                            )}
+                            {!u.loginId && (
+                              <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--warn)" }}>
+                                ⚠ Sem ID de login
+                              </span>
+                            )}
                           </div>
+                          {allowed.length > 0 && (
+                            <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--info)", marginTop: 2 }}>
+                              Categorias: {allowed.join(", ")}
+                            </div>
+                          )}
                         </div>
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                           <button
                             className={`btn-icon-sm ${isEditingPreset ? "edit-btn" : ""}`}
                             onClick={() => setEditingUserPresetId(isEditingPreset ? null : u.id)}
-                            title="Configurar Preset / Filtro de Categorias"
+                            title="Filtro de Categorias"
                             style={{ borderColor: allowed.length > 0 ? "var(--accent)" : undefined }}
                           >
                             <Icon name="filter" size={13} color={allowed.length > 0 ? "var(--accent)" : undefined} />
                           </button>
-                          <button className="btn-icon-sm" onClick={() => handleDeleteSectorUser(u.id)} title="Remover Operador">
+                          <button className="btn-icon-sm" onClick={() => handleDeleteSectorUser(u)} title="Remover Usuário">
                             <Icon name="trash" size={13} color="var(--danger)" />
                           </button>
                         </div>
                       </div>
 
                       {isEditingPreset && (
-                        <div style={{ background: "var(--surface)", padding: "10px 12px", borderRadius: "var(--r)", border: "1px solid var(--border2)", marginTop: 4 }}>
+                        <div style={{ background: "var(--surface)", padding: "10px 12px", borderRadius: "var(--r)", border: "1px solid var(--border2)" }}>
                           <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
-                            Categorias Permitidas para {u.nome}:
+                            Categorias de {u.nome}:
                           </div>
                           {sectorCategoriesList.length === 0 ? (
                             <div style={{ fontSize: 10, fontFamily: "var(--mono)", color: "var(--text-dim)" }}>
-                              Nenhuma categoria cadastrada no setor. Cadastre categorias na aba "Criar P/C".
+                              Nenhuma categoria no setor.
                             </div>
                           ) : (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -894,7 +981,7 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                             </div>
                           )}
                           <div style={{ fontSize: 9, fontFamily: "var(--mono)", color: "var(--text-dim)", marginTop: 6 }}>
-                            * Se nenhuma categoria for selecionada, o operador terá acesso a todas as categorias.
+                            * Sem filtro = acesso a todas as categorias.
                           </div>
                         </div>
                       )}
