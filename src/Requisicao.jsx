@@ -1213,16 +1213,11 @@ export default function RequisicaoApp() {
             <div className="req-logo">
               <Icon name="package" size={20} color="var(--accent)" /> SYS
             </div>
-            {setor && fase === "form" && (
+            {activeUser && fase === "form" && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap" }}>
-                <span className="setor-pill" style={{ color: setor.color, borderColor: setor.color }}>
-                  <Icon name={setor.iconName || "package"} size={14} color={setor.color} /> {setor.label}
+                <span className="setor-pill" style={{ background: "var(--surface2)", borderColor: "var(--border2)", color: "var(--text)" }}>
+                  <Icon name="userCheck" size={13} color="var(--accent)" /> {activeUser.nome}
                 </span>
-                {activeUser && (
-                  <span className="setor-pill" style={{ background: "var(--surface2)", borderColor: "var(--border2)", color: "var(--text)" }}>
-                    <Icon name="userCheck" size={13} color="var(--accent)" /> {activeUser.nome}
-                  </span>
-                )}
               </div>
             )}
           </div>
@@ -1298,7 +1293,7 @@ export default function RequisicaoApp() {
                 {/* MODO PADRÃO DO APP */}
                 <div className="modal-nav-group" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 10 }}>
                   <div className="modal-nav-group-title">MODO PADRÃO DO APP</div>
-                  <div style={{ display: "flex", gap: 4, padding: "2px 6px" }}>
+                  <div style={{ display: "flex", gap: 6, padding: "2px 6px" }}>
                     <button
                       type="button"
                       className="ftab"
@@ -1306,18 +1301,6 @@ export default function RequisicaoApp() {
                       onClick={() => { setShowSidebar(false); setShowAdminModal(true); }}
                     >
                       <Icon name="settings" size={12} /> Sys (Admin)
-                    </button>
-                    <button
-                      type="button"
-                      className="ftab"
-                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
-                      onClick={() => {
-                        localStorage.setItem("app_entry_mode", "caixa");
-                        setShowSidebar(false);
-                        window.location.href = `/caixa?empresa=${encodeURIComponent(companySession?.empresaId || "")}`;
-                      }}
-                    >
-                      <Icon name="store" size={12} /> Caixa
                     </button>
                     <button
                       type="button"
@@ -1346,19 +1329,6 @@ export default function RequisicaoApp() {
                       <span className="modal-nav-item-icon"><Icon name="fileText" size={18} /></span>
                       <span>Histórico de Pedidos</span>
                     </button>
-
-                    {modoLojaAtivo && (
-                      <a
-                        href={caixaUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="modal-nav-item caixa-item"
-                        onClick={() => setShowSidebar(false)}
-                      >
-                        <span className="modal-nav-item-icon"><Icon name="store" size={18} /></span>
-                        <span>Frente de Caixa (POS)</span>
-                      </a>
-                    )}
                   </div>
                 )}
 
@@ -1377,19 +1347,12 @@ export default function RequisicaoApp() {
 
                 {/* ABA APPS UNIFICADA */}
                 <div className="modal-nav-group" style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-                  <div className="modal-nav-group-title">APLICATIVOS (.APK)</div>
-                  <a href="/Baixar/SystemStock adm.apk" download className="modal-nav-item">
-                    <span className="modal-nav-item-icon"><Icon name="download" size={18} color="var(--success)" /></span>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>App Administrador</div>
-                      <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Gestão & Estoque</div>
-                    </div>
-                  </a>
+                  <div className="modal-nav-group-title">APLICATIVO (.APK)</div>
                   <a href="/Baixar/SystemStock User.apk" download className="modal-nav-item">
-                    <span className="modal-nav-item-icon"><Icon name="download" size={18} color="var(--info)" /></span>
+                    <span className="modal-nav-item-icon"><Icon name="download" size={18} color="var(--accent)" /></span>
                     <div>
                       <div style={{ fontWeight: 600 }}>App Requisições</div>
-                      <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Solicitantes</div>
+                      <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Instalar no Android (Solicitantes)</div>
                     </div>
                   </a>
                 </div>
