@@ -91,6 +91,7 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
     numero: "",
     caixaAtivo: false
   });
+  const [originalCompanyId, setOriginalCompanyId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const loadEmpresa = async () => {
@@ -101,26 +102,31 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
+        const cId = data.companyId || user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
         setEmpresaData({
           nomeEmpresa: data.nomeEmpresa || data.nome || "",
-          companyId: data.companyId || user.email,
+          companyId: cId,
           senhaApp: data.senhaApp || data.senha || "123456",
           numero: data.numero || "",
           caixaAtivo: data.caixaAtivo === true
         });
+        setOriginalCompanyId(cId);
       } else {
         // Inicializa dados padrão da empresa
-        const defaultCompanyId = user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+        const defaultCompanyId = user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "") || "empresa";
         const defaultData = {
           nomeEmpresa: "Minha Empresa",
-          companyId: defaultCompanyId || user.email,
+          companyId: defaultCompanyId,
           senhaApp: "123456",
           email: user.email,
           caixaAtivo: false,
           criadoEm: new Date().toISOString()
         };
         await setDoc(docRef, defaultData, { merge: true });
+        // Cria o índice inicial
+        await setDoc(doc(db, "company_ids", defaultCompanyId), { email: user.email }, { merge: true });
         setEmpresaData(defaultData);
+        setOriginalCompanyId(defaultCompanyId);
       }
     } catch (e) {
       addToast("Erro ao carregar dados da empresa: " + e.message, "error");
@@ -136,16 +142,42 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
     if (!empresaData.nomeEmpresa.trim()) { addToast("Digite o nome da empresa.", "error"); return; }
     if (!empresaData.senhaApp || empresaData.senhaApp.length < 4) { addToast("A senha do App deve ter pelo menos 4 caracteres.", "error"); return; }
 
+    // Validar customId
+    const newId = empresaData.companyId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    if (!newId || newId.length < 3) { addToast("O ID da empresa deve ter pelo menos 3 caracteres (letras e números).", "error"); return; }
+
     setSaving(true);
     try {
+      // Verificar conflito: outro usuário com mesmo ID
+      if (newId !== originalCompanyId) {
+        const existingSnap = await getDoc(doc(db, "company_ids", newId));
+        if (existingSnap.exists() && existingSnap.data().email !== user.email) {
+          addToast(`O ID "${newId}" já está em uso. Escolha outro.`, "error");
+          setSaving(false);
+          return;
+        }
+      }
+
       const docRef = doc(db, "users", user.email);
       await setDoc(docRef, {
         nomeEmpresa: empresaData.nomeEmpresa.trim(),
+        companyId: newId,
         senhaApp: empresaData.senhaApp.trim(),
         senha: empresaData.senhaApp.trim(), // compatibilidade
         numero: empresaData.numero.trim(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
+
+      // Atualizar índice de ID da empresa
+      await setDoc(doc(db, "company_ids", newId), { email: user.email, nomeEmpresa: empresaData.nomeEmpresa.trim() });
+
+      // Se o ID mudou, remover o índice antigo
+      if (originalCompanyId && originalCompanyId !== newId) {
+        try { await deleteDoc(doc(db, "company_ids", originalCompanyId)); } catch {}
+      }
+
+      setOriginalCompanyId(newId);
+      setEmpresaData(p => ({ ...p, companyId: newId }));
       addToast("Configurações da Empresa salvas!", "success");
     } catch (e) {
       addToast("Erro ao salvar: " + e.message, "error");
@@ -164,8 +196,8 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
     addToast(`Nova senha gerada: ${pwd}. Não se esqueça de salvar!`, "info");
   };
 
-  const reqUrl = `${window.location.origin}/requisicao?empresa=${encodeURIComponent(user?.email || "")}`;
-  const caixaUrl = `${window.location.origin}/caixa?empresa=${encodeURIComponent(user?.email || "")}`;
+  const reqUrl = `${window.location.origin}/requisicao?empresa=${encodeURIComponent(empresaData.companyId || user?.email || "")}`;
+  const caixaUrl = `${window.location.origin}/caixa?empresa=${encodeURIComponent(empresaData.companyId || user?.email || "")}`;
 
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
@@ -212,16 +244,18 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
             <span style={{ fontSize: 9, opacity: 0.8 }}>(Padrão Geral)</span>
           </button>
 
-          <button
-            type="button"
-            className={`btn ${entryMode === "caixa" ? "btn-accent" : "btn-outline"}`}
-            style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto", opacity: isCaixaPermitido ? 1 : 0.6 }}
-            onClick={() => changeEntryMode("caixa")}
-          >
-            <Icon name={isCaixaPermitido ? "store" : "lock"} size={22} color={entryMode === "caixa" ? "#000" : isCaixaPermitido ? "var(--success)" : "var(--text-dim)"} />
-            <span style={{ fontWeight: 700, fontSize: 13 }}>Caixa (POS)</span>
-            <span style={{ fontSize: 9, opacity: 0.8 }}>{isCaixaPermitido ? "(Frente de Caixa)" : "(Bloqueado - Dev)"}</span>
-          </button>
+          {isCaixaPermitido && (
+            <button
+              type="button"
+              className={`btn ${entryMode === "caixa" ? "btn-accent" : "btn-outline"}`}
+              style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto" }}
+              onClick={() => changeEntryMode("caixa")}
+            >
+              <Icon name="store" size={22} color={entryMode === "caixa" ? "#000" : "var(--success)"} />
+              <span style={{ fontWeight: 700, fontSize: 13 }}>Caixa (POS)</span>
+              <span style={{ fontSize: 9, opacity: 0.8 }}>(Frente de Caixa)</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -265,18 +299,21 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
             <div>
-              <label className="form-label">ID da Empresa (Autenticação)</label>
+              <label className="form-label">ID da Empresa <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 10 }}>(usado no login do App)</span></label>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   className="form-input"
-                  value={user?.email || ""}
-                  readOnly
-                  style={{ background: "var(--surface2)", fontFamily: "var(--mono)", color: "var(--accent)", fontWeight: 600 }}
+                  value={empresaData.companyId}
+                  onChange={e => setEmpresaData(p => ({ ...p, companyId: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") }))}
+                  placeholder="ex: minhaloja"
+                  style={{ fontFamily: "var(--mono)", color: "var(--accent)", fontWeight: 600, letterSpacing: 1 }}
+                  maxLength={32}
                 />
-                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px" }} onClick={() => copyToClipboard(user?.email || "", "ID da Empresa")}>
+                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px" }} onClick={() => copyToClipboard(empresaData.companyId, "ID da Empresa")}>
                   <Icon name="copy" size={14} />
                 </button>
               </div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--text-dim)", marginTop: 4 }}>Apenas letras, números, - e _. Mín. 3 caracteres.</div>
             </div>
 
             <div>
@@ -334,23 +371,25 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
             </div>
           </div>
 
-          {/* App de Frente de Caixa */}
-          <div style={{ background: "var(--surface2)", padding: 14, borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, fontSize: 13, fontFamily: "var(--sans)" }}>
-                <Icon name="store" size={16} color="var(--success)" /> APP DE FRENTE DE CAIXA (POS)
+          {/* App de Frente de Caixa - só aparece se caixa habilitado */}
+          {isCaixaPermitido && (
+            <div style={{ background: "var(--surface2)", padding: 14, borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, fontSize: 13, fontFamily: "var(--sans)" }}>
+                  <Icon name="store" size={16} color="var(--success)" /> APP DE FRENTE DE CAIXA (POS)
+                </div>
+                <a href={caixaUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ fontSize: 11, padding: "5px 10px", color: "var(--success)" }}>
+                  <Icon name="externalLink" size={13} /> Abrir Caixa
+                </a>
               </div>
-              <a href={caixaUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ fontSize: 11, padding: "5px 10px", color: "var(--success)" }}>
-                <Icon name="externalLink" size={13} /> Abrir Caixa
-              </a>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input className="form-input" readOnly value={caixaUrl} style={{ flex: 1, fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)" }} />
+                <button className="btn btn-accent" style={{ fontSize: 11, padding: "9px 14px", background: "var(--success)", borderColor: "var(--success)" }} onClick={() => copyToClipboard(caixaUrl, "Link do Caixa POS")}>
+                  <Icon name="copy" size={13} /> Copiar
+                </button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input className="form-input" readOnly value={caixaUrl} style={{ flex: 1, fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)" }} />
-              <button className="btn btn-accent" style={{ fontSize: 11, padding: "9px 14px", background: "var(--success)", borderColor: "var(--success)" }} onClick={() => copyToClipboard(caixaUrl, "Link do Caixa POS")}>
-                <Icon name="copy" size={13} /> Copiar
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

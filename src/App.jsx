@@ -2116,6 +2116,9 @@ function BaixarAppsView() {
     }
   };
 
+  const DEV_EMAIL = "micaelbardimtech@gmail.com";
+  const isDevMaster = user?.email?.toLowerCase() === DEV_EMAIL;
+
   // Lista Principal de Nav (Sidebar)
   const allNavItems = [
     { id: "dashboard",   icon: "home",          label: "Home" },
@@ -2130,7 +2133,7 @@ function BaixarAppsView() {
     { id: "log",         icon: "fileText",      label: "Log" },
     { id: "config",      icon: "settings",      label: "Configurações" },
     { id: "apps",        icon: "download",      label: "Apps Mobile" },
-    { id: "dev",         icon: "code",          label: "Painel Dev", badge: "DEV" },
+    ...(isDevMaster ? [{ id: "dev", icon: "code", label: "Painel Dev", badge: "DEV" }] : []),
   ];
 
   if (isCaixaAtivo && modoLojaAtivo) {
@@ -2157,7 +2160,7 @@ function BaixarAppsView() {
       allNavItems.find(i => i.id === "apps"),
       ...(isCaixaAtivo && modoLojaAtivo ? [allNavItems.find(i => i.id === "config_caixa")].filter(Boolean) : []),
     ].filter(Boolean) },
-    { group: "DESENVOLVEDOR", items: [allNavItems.find(i => i.id === "dev")].filter(Boolean) },
+    ...(isDevMaster ? [{ group: "DESENVOLVEDOR", items: [allNavItems.find(i => i.id === "dev")].filter(Boolean) }] : []),
   ];
 
   // Itens estritamente principais da Barra Inferior (Mobile)
@@ -2173,22 +2176,6 @@ function BaixarAppsView() {
   ];
 
   const handleNavClick = (itemId) => {
-    if (itemId === "dev") {
-      setTab("dev");
-      setShowModalMenu(false);
-      return;
-    }
-
-    const isRestrictedMode = appEntryMode === "caixa" || appEntryMode === "requisicao";
-    const isAllowedInRestricted = (appEntryMode === "caixa" && itemId === "caixas") || (appEntryMode === "requisicao" && itemId === "requisicoes");
-
-    if (isRestrictedMode && !isAllowedInRestricted) {
-      setTargetPendingNavId(itemId);
-      setShowAdminAuthModal(true);
-      setShowModalMenu(false);
-      return;
-    }
-
     if (itemId === "caixas") {
       setTab("config");
       setConfigSubTab("caixas");

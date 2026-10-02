@@ -274,23 +274,31 @@ function CompanyLoginScreen({ onLoginSuccess, initialEmpresaId }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const cleanId = empresaIdInput.trim();
-    if (!cleanId) { setErr("Digite o ID ou Email da Empresa."); return; }
+    const cleanId = empresaIdInput.trim().toLowerCase();
+    if (!cleanId) { setErr("Digite o ID da Empresa."); return; }
     if (!senhaInput.trim()) { setErr("Digite a Senha de Acesso."); return; }
 
     setLoading(true);
     setErr("");
     try {
-      const docRef = doc(db, "users", cleanId);
-      const docSnap = await getDoc(docRef);
+      // 1. Buscar o email real pelo ID curto na coleção de índice
+      const idxSnap = await getDoc(doc(db, "company_ids", cleanId));
+      let realEmail = null;
+      if (idxSnap.exists()) {
+        realEmail = idxSnap.data().email;
+      }
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const expectedSenha = data.senhaApp || data.senha || "123456";
-        if (senhaInput.trim() === expectedSenha) {
-          saveCompanySession(cleanId, data.nomeEmpresa || cleanId);
-          onLoginSuccess(cleanId, data.nomeEmpresa || cleanId);
-          return;
+      // 2. Carregar dados da empresa usando o email real
+      if (realEmail) {
+        const docSnap = await getDoc(doc(db, "users", realEmail));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const expectedSenha = data.senhaApp || data.senha || "123456";
+          if (senhaInput.trim() === expectedSenha) {
+            saveCompanySession(realEmail, data.nomeEmpresa || realEmail);
+            onLoginSuccess(realEmail, data.nomeEmpresa || realEmail);
+            return;
+          }
         }
       }
 
@@ -315,14 +323,15 @@ function CompanyLoginScreen({ onLoginSuccess, initialEmpresaId }) {
 
         <form onSubmit={handleLogin}>
           <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">ID ou Email da Empresa</label>
+            <label className="form-label">ID da Empresa</label>
             <input
               className="form-input"
-              placeholder="ex: admin@empresa.com ou ID"
+              placeholder="ex: minhaloja"
               value={empresaIdInput}
-              onChange={e => setEmpresaIdInput(e.target.value)}
+              onChange={e => setEmpresaIdInput(e.target.value.toLowerCase().replace(/\s/g, ""))}
               required
               autoFocus
+              style={{ fontFamily: "var(--mono)", letterSpacing: 1 }}
             />
           </div>
 
@@ -941,12 +950,10 @@ export default function RequisicaoApp() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
 
   // Sessão da Empresa (ID + Nome)
-  const [companySession, setCompanySession] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const empresaParam = params.get("empresa");
-    if (empresaParam) return { empresaId: empresaParam, nomeEmpresa: empresaParam };
-    return loadCompanySession();
-  });
+  // O parâmetro ?empresa= agora contém o companyId curto, não o email.
+  // Ele apenas pré-preenche a tela de login; a sessão real é resolvida após autenticação.
+  const [companySession, setCompanySession] = useState(() => loadCompanySession());
+  const initialEmpresaParam = new URLSearchParams(window.location.search).get("empresa") || "";
 
   const empresaId = companySession?.empresaId || "default";
 
@@ -1293,7 +1300,7 @@ export default function RequisicaoApp() {
           {!companySession && (
             <CompanyLoginScreen
               onLoginSuccess={(id, nome) => setCompanySession({ empresaId: id, nomeEmpresa: nome })}
-              initialEmpresaId={new URLSearchParams(window.location.search).get("empresa")}
+              initialEmpresaId={initialEmpresaParam}
             />
           )}
 
