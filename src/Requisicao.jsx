@@ -306,7 +306,12 @@ function ReqLoginScreen({ onLoginSuccess, initialId }) {
         const opData = opSnap.data();
         const expectedSenha = opData.senha || opData.pin || "1234";
         if (senhaInput.trim() === expectedSenha) {
-          saveOperatorSession(opData);
+          const allowedSectors = (opData.allowedSectors && opData.allowedSectors.length > 0)
+            ? opData.allowedSectors
+            : [opData.setorId];
+          const enrichedOp = { ...opData, allowedSectors };
+
+          saveOperatorSession(enrichedOp);
           saveCompanySession(opData.adminEmail, opData.nomeEmpresa || opData.adminEmail);
           saveSetorSession(opData.setorId);
           onLoginSuccess({
@@ -314,7 +319,7 @@ function ReqLoginScreen({ onLoginSuccess, initialId }) {
             empresaId: opData.adminEmail,
             nomeEmpresa: opData.nomeEmpresa || opData.adminEmail,
             setorKey: opData.setorId,
-            operator: opData
+            operator: enrichedOp
           });
           return;
         }
@@ -535,13 +540,53 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
           getDocs(collection(db, getCol(setorKey, "produtos_padrao"))),
           getDocs(collection(db, getCol(setorKey, "produtos"))),
         ]);
-        setCats(sc.docs.map(d => ({ id: d.id, ...d.data() })));
-        setProdutos(sp.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        const padraoList = sp.docs.map(d => ({ id: d.id, ...d.data() }));
+        const estoqueList = se.docs.map(d => ({ id: d.id, ...d.data() }));
+
         const map = {};
-        se.docs.forEach(d => { const x = d.data(); map[x.nome] = x.quantidade ?? 0; });
+        estoqueList.forEach(x => {
+          if (x.nome) map[x.nome] = x.quantidade ?? 0;
+        });
         setEstoqueMap(map);
-      } catch { }
-      finally { setLoading(false); }
+
+        // Mesclar produtos_padrao e produtos para nunca faltar nenhum item
+        const prodsMap = new Map();
+        padraoList.forEach(p => {
+          if (p.nome) {
+            const key = p.nome.trim().toLowerCase();
+            prodsMap.set(key, { ...p, nome: p.nome.trim(), categoria: p.categoria || "Geral" });
+          }
+        });
+        estoqueList.forEach(p => {
+          if (p.nome) {
+            const key = p.nome.trim().toLowerCase();
+            if (!prodsMap.has(key)) {
+              prodsMap.set(key, { ...p, nome: p.nome.trim(), categoria: p.categoria || "Geral" });
+            }
+          }
+        });
+
+        const mergedProds = Array.from(prodsMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+        setProdutos(mergedProds);
+
+        // Mesclar categorias cadastradas e encontradas nos produtos
+        const catMap = new Map();
+        sc.docs.forEach(d => {
+          const data = d.data();
+          if (data.nome) catMap.set(data.nome.trim(), { id: d.id, nome: data.nome.trim() });
+        });
+        mergedProds.forEach(p => {
+          if (p.categoria && !catMap.has(p.categoria)) {
+            catMap.set(p.categoria, { id: p.categoria, nome: p.categoria });
+          }
+        });
+        setCats(Array.from(catMap.values()));
+      } catch (err) {
+        console.error("Erro ao carregar catálogo de produtos:", err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [setorKey]);
 
@@ -560,11 +605,10 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
     .filter(p => !hasRestriction || allowedCats.includes(p.categoria))
     .filter(p => !catFiltro || p.categoria === catFiltro)
     .filter(p => !busca.trim() || p.nome.toLowerCase().includes(busca.toLowerCase()))
-    .filter(p => !jaAdicionados.some(j => j.nome === p.nome));
+    .filter(p => !jaAdicionados.some(j => j.nome.toLowerCase() === p.nome.toLowerCase()));
 
   const estoque = sel ? (estoqueMap[sel.nome] ?? null) : null;
   const qtdNum = Math.max(1, parseInt(qtd) || 1);
-  const excede = estoque !== null && qtdNum > estoque;
 
   const handleSelect = (p) => {
     setSel(prev => prev?.id === p.id ? null : p);
@@ -572,8 +616,8 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
   };
 
   const handleAdd = () => {
-    if (!sel || excede || qtdNum < 1) return;
-    onAdd({ nome: sel.nome, categoria: sel.categoria, quantidade: qtdNum });
+    if (!sel || qtdNum < 1) return;
+    onAdd({ nome: sel.nome, categoria: sel.categoria || "Geral", quantidade: qtdNum });
     setSel(null);
     setQtd(1);
     setTimeout(() => inputRef.current?.focus(), 60);
@@ -597,7 +641,7 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
         <input
           ref={inputRef}
           type="text"
-          placeholder="Buscar produto no catálogo..."
+          placeholder="Buscar produto no catálogo do setor..."
           value={busca}
           onChange={e => { setBusca(e.target.value); setSel(null); }}
           autoComplete="off"
@@ -627,31 +671,49 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
       )}
 
       <div className="prod-list">
-        {filtrados.length === 0
-          ? <div className="empty" style={{ padding: "16px 12px" }}>
-            {busca ? `Nenhum resultado para "${busca}"` : "Nenhum produto disponível"}
+        {filtrados.length === 0 ? (
+          <div className="empty" style={{ padding: "18px 12px", display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+            <div>{busca ? `Nenhum produto cadastrado com "${busca}"` : "Nenhum produto cadastrado no setor"}</div>
+            {busca.trim() && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: 11, padding: "7px 14px", gap: 6, borderColor: "var(--accent)", color: "var(--accent)" }}
+                onClick={() => {
+                  onAdd({ nome: busca.trim(), categoria: catFiltro || "Geral", quantidade: 1 });
+                  setBusca("");
+                  setSel(null);
+                }}
+              >
+                <Icon name="plus" size={13} /> Solicitar "{busca.trim()}" como item sob demanda
+              </button>
+            )}
           </div>
-          : filtrados.map(p => {
+        ) : (
+          filtrados.map(p => {
             const stk = estoqueMap[p.nome] ?? null;
             const zero = stk !== null && stk <= 0;
             const isSel = sel?.id === p.id;
             return (
-              <div key={p.id}
-                className={`prod-row ${isSel ? "selected" : ""} ${zero ? "unavail" : ""}`}
-                onClick={() => !zero && handleSelect(p)}
+              <div
+                key={p.id}
+                className={`prod-row ${isSel ? "selected" : ""}`}
+                onClick={() => handleSelect(p)}
+                style={{ cursor: "pointer" }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="prod-row-name">{p.nome}</div>
-                  <div className="prod-row-cat">{p.categoria}</div>
+                  <div className="prod-row-cat">{p.categoria || "Geral"}</div>
                 </div>
                 {stk !== null && (
-                  <div className={`prod-stock ${zero ? "zero" : stk <= 5 ? "warn" : "ok"}`}>
-                    {zero ? "sem estoque" : `${stk} un.`}
+                  <div className={`prod-stock ${zero ? "warn" : stk <= 5 ? "warn" : "ok"}`}>
+                    {zero ? "0 un. (solicitar reposição)" : `${stk} un. em estoque`}
                   </div>
                 )}
               </div>
             );
-          })}
+          })
+        )}
       </div>
 
       {sel && (
@@ -667,29 +729,23 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
               className="qty-input"
               value={qtd}
               min={1}
-              max={estoque ?? undefined}
               onChange={e => setQtd(e.target.value)}
               onKeyDown={handleKeyQtd}
             />
             <button className="qty-btn"
-              onClick={() => setQtd(q => {
-                const n = (parseInt(q) || 1) + 1;
-                return estoque !== null ? Math.min(estoque, n) : n;
-              })}>+</button>
+              onClick={() => setQtd(q => (parseInt(q) || 1) + 1)}>+</button>
           </div>
           <button
             className="btn btn-accent"
             style={{ padding: "8px 16px", fontSize: 12 }}
             onClick={handleAdd}
-            disabled={excede || qtdNum < 1}
+            disabled={qtdNum < 1}
           >
             <Icon name="plus" size={14} /> ADICIONAR
           </button>
-          {estoque !== null && (
-            <div style={{ width: "100%", fontFamily: "var(--mono)", fontSize: 10, marginTop: 4, color: excede ? "var(--danger)" : "var(--success)" }}>
-              {excede ? `Disponível em estoque: ${estoque} un.` : `Em estoque: ${estoque} un.`}
-            </div>
-          )}
+          <div style={{ width: "100%", fontFamily: "var(--mono)", fontSize: 10, marginTop: 4, color: "var(--text-dim)" }}>
+            {estoque !== null ? `Estoque atual no setor: ${estoque} un.` : "Produto disponível para solicitação"}
+          </div>
         </div>
       )}
     </div>
@@ -774,7 +830,7 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
 
   const addItem = (item) => {
     setItens(prev => {
-      const idx = prev.findIndex(i => i.nome === item.nome);
+      const idx = prev.findIndex(i => i.nome.toLowerCase() === item.nome.toLowerCase());
       if (idx !== -1) {
         const upd = [...prev];
         upd[idx] = { ...upd[idx], quantidade: upd[idx].quantidade + item.quantidade };
@@ -783,6 +839,18 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
       }
       toast(`"${item.nome}" adicionado ao pedido`, "info");
       return [...prev, item];
+    });
+  };
+
+  const updateItemQty = (idx, delta) => {
+    setItens(prev => {
+      const upd = [...prev];
+      const newQty = (upd[idx].quantidade || 1) + delta;
+      if (newQty <= 0) {
+        return prev.filter((_, i) => i !== idx);
+      }
+      upd[idx] = { ...upd[idx], quantidade: newQty };
+      return upd;
     });
   };
 
@@ -903,15 +971,37 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
             </label>
             <div className="items-list">
               {itens.map((item, i) => (
-                <div key={i} className="item-row animate-slide-up">
-                  <div className="item-info">
-                    <div className="item-name">{item.nome}</div>
-                    <div className="item-cat">{item.categoria}</div>
+                <div key={i} className="item-row animate-slide-up" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                  <div className="item-info" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="item-name" style={{ fontWeight: 600 }}>{item.nome}</div>
+                    <div className="item-cat" style={{ fontSize: 10, color: "var(--text-dim)" }}>{item.categoria || "Geral"}</div>
                   </div>
-                  <div className="item-qty">{item.quantidade}×</div>
-                  <button className="btn-ghost" onClick={() => remover(i)} title="Remover item">
-                    <Icon name="x" size={16} />
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ width: 26, height: 26, padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border2)", borderRadius: "var(--r)", fontSize: 14 }}
+                      onClick={() => updateItemQty(i, -1)}
+                      title="Diminuir 1 un."
+                    >
+                      −
+                    </button>
+                    <div className="item-qty" style={{ minWidth: 26, textAlign: "center", fontWeight: 700, fontFamily: "var(--mono)", fontSize: 13 }}>
+                      {item.quantidade}×
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ width: 26, height: 26, padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border2)", borderRadius: "var(--r)", fontSize: 14 }}
+                      onClick={() => updateItemQty(i, 1)}
+                      title="Aumentar 1 un."
+                    >
+                      +
+                    </button>
+                    <button className="btn-ghost" style={{ padding: "4px 6px", marginLeft: 4 }} onClick={() => remover(i)} title="Remover item">
+                      <Icon name="x" size={15} color="var(--danger)" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1138,7 +1228,20 @@ export default function RequisicaoApp() {
   const sectorObj = sectors.find(s => s.id === setorKey);
   const setor = sectorObj ? { ...sectorObj, color: sectorObj.color || "var(--accent)" } : null;
 
+  const getUserAllowedSectors = () => {
+    if (!activeUser) return null; // login de empresa/admin (acesso total)
+    if (activeUser.allowedSectors && activeUser.allowedSectors.length > 0) {
+      return activeUser.allowedSectors;
+    }
+    return activeUser.setorId ? [activeUser.setorId] : null;
+  };
+
   const selecionarSetor = (key) => {
+    const userAllowed = getUserAllowedSectors();
+    if (userAllowed && !userAllowed.includes(key)) {
+      toast("Você não possui permissão para acessar este setor.", "error");
+      return;
+    }
     setSetorKey(key);
     setFase("pin");
   };
@@ -1164,16 +1267,33 @@ export default function RequisicaoApp() {
   };
 
   const handleLogoutSetor = () => {
+    setShowLogout(false);
+    setShowSidebar(false);
+
+    const userAllowed = getUserAllowedSectors();
+
+    // Se o usuário é um operador restrito a apenas 1 setor (ou não tem outros setores permitidos):
+    // Sair do setor deve encerrar a sessão do operador por completo, sem expor os outros setores da empresa!
+    if (activeUser && userAllowed && userAllowed.length <= 1) {
+      clearSetorSession();
+      clearCompanySession();
+      clearOperatorSession();
+      setActiveUser(null);
+      setOperatorSession(null);
+      setCompanySession(null);
+      setSetorKey(null);
+      setFase("setores");
+      setSubTab("form");
+      toast("Sessão do setor encerrada com segurança", "info");
+      return;
+    }
+
+    // Se o operador tem múltiplos setores habilitados:
     clearSetorSession();
-    clearOperatorSession();
-    setActiveUser(null);
-    setOperatorSession(null);
     setSetorKey(null);
     setFase("setores");
     setSubTab("form");
-    setShowLogout(false);
-    setShowSidebar(false);
-    toast("Sessão do setor encerrada", "info");
+    toast("Setor desvinculado. Escolha outro setor permitido.", "info");
   };
 
   const handleLogoutEmpresa = () => {
@@ -1332,7 +1452,7 @@ export default function RequisicaoApp() {
                   </div>
                 )}
 
-                {companySession && (
+                {companySession && (!activeUser || (activeUser?.allowedSectors && activeUser.allowedSectors.length > 1)) && (
                   <div className="modal-nav-group">
                     <div className="modal-nav-group-title">Gestão de Setores</div>
                     <button
@@ -1399,25 +1519,43 @@ export default function RequisicaoApp() {
             <div className="animate-slide-up">
               <div className="page-hd">
                 <div className="page-title">REQUISIÇÃO DE ESTOQUE</div>
-                <div className="page-sub">Empresa: <strong>{companySession.nomeEmpresa || companySession.empresaId}</strong> · Selecione o seu setor</div>
+                <div className="page-sub">
+                  Empresa: <strong>{companySession.nomeEmpresa || companySession.empresaId}</strong>
+                  {activeUser ? ` · Operador: ${activeUser.nome}` : " · Selecione o seu setor"}
+                </div>
               </div>
 
-              {loadingSectors ? (
-                <div className="empty"><span className="spinner" /></div>
-              ) : sectors.length === 0 ? (
-                <div className="empty">Nenhum setor cadastrado para esta empresa no sistema.</div>
-              ) : (
-                <div className="setor-grid">
-                  {sectors.map(s => (
-                    <div key={s.id} className="setor-card" style={{ "--c": s.color || "var(--accent)" }} onClick={() => selecionarSetor(s.id)}>
-                      <div className="setor-card-icon">
-                        <Icon name={s.iconName || "package"} size={24} color={s.color || "var(--accent)"} />
-                      </div>
-                      <div className="setor-card-name">{s.label}</div>
+              {(() => {
+                const userAllowed = getUserAllowedSectors();
+                const visibleSectors = userAllowed
+                  ? sectors.filter(s => userAllowed.includes(s.id))
+                  : sectors;
+
+                if (loadingSectors) {
+                  return <div className="empty"><span className="spinner" /></div>;
+                }
+                if (visibleSectors.length === 0) {
+                  return (
+                    <div className="empty" style={{ padding: "40px 16px" }}>
+                      <Icon name="lock" size={26} color="var(--warn)" style={{ marginBottom: 10 }} />
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>Nenhum setor autorizado para este operador.</div>
+                      <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>Solicite acesso a setores ao Administrador no painel de configurações.</div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                }
+                return (
+                  <div className="setor-grid">
+                    {visibleSectors.map(s => (
+                      <div key={s.id} className="setor-card" style={{ "--c": s.color || "var(--accent)" }} onClick={() => selecionarSetor(s.id)}>
+                        <div className="setor-card-icon">
+                          <Icon name={s.iconName || "package"} size={24} color={s.color || "var(--accent)"} />
+                        </div>
+                        <div className="setor-card-name">{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

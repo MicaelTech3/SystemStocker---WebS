@@ -168,13 +168,28 @@ const styles = `
   .page-title { font-family:var(--display); font-size:30px; letter-spacing:4px; line-height:1; }
   .page-sub { font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:3px; }
   .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
-  @media (max-width:600px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
-  .stat-card { background:var(--surface); border:1px solid var(--border); padding:16px; position:relative; }
-  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--c,var(--accent)); }
+  @media (max-width:768px) {
+    .stats-grid { grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+    .stat-card { padding:12px; }
+    .stat-value { font-size:30px; }
+  }
+  @media (max-width:380px) {
+    .stats-grid { grid-template-columns:repeat(2,1fr); gap:6px; }
+    .stat-card { padding:10px 8px; }
+    .stat-label { font-size:8px; letter-spacing:1px; }
+    .stat-value { font-size:26px; }
+  }
+  .stat-card { background:var(--surface); border:1px solid var(--border); padding:16px; position:relative; border-radius:var(--r); }
+  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--c,var(--accent)); border-top-left-radius:var(--r); border-top-right-radius:var(--r); }
   .stat-label { font-family:var(--mono); font-size:9px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; }
   .stat-value { font-family:var(--display); font-size:38px; line-height:1; }
   .stat-sub { font-family:var(--mono); font-size:9px; color:var(--text-dim); margin-top:4px; }
   .filter-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  @media (max-width:600px) {
+    .filter-tabs { flex-wrap:nowrap; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+    .filter-tabs::-webkit-scrollbar { display:none; }
+    .ftab { flex-shrink:0; white-space:nowrap; }
+  }
   .ftab { background:transparent; border:1px solid var(--border2); color:var(--text-dim); padding:6px 12px; font-family:var(--mono); font-size:10px; cursor:pointer; border-radius:var(--r); transition:all .15s; -webkit-tap-highlight-color:transparent; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:5px; }
   .ftab:active,.ftab:hover { border-color:var(--accent); color:var(--accent); }
   .ftab.active { background:var(--accent); color:#0a0a0a; border-color:var(--accent); font-weight:600; }
@@ -630,7 +645,7 @@ function GoogleOnboardingScreen({ user, onComplete, onCancel }) {
       <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ bottom: "-15%", right: "-15%", animationDelay: "-11s", width: "550px", height: "550px" }}></video>
 
       <div className="onboarding-card" style={{ position: "relative", zIndex: 2 }}>
-        <div className="onboarding-title">SYSTEMSTOCKER<span>.</span></div>
+        <div className="onboarding-title">SYSTEMSTOCK<span>.</span></div>
         <div className="onboarding-sub">Concluir Cadastro com Google</div>
 
         <form onSubmit={handleSubmit}>
@@ -771,7 +786,7 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
       <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ bottom: "-15%", right: "-15%", animationDelay: "-11s", width: "550px", height: "550px" }}></video>
 
       <div className="login-card" style={{ position: "relative", zIndex: 2 }}>
-        <div className="login-title">SYSTEMSTOCKER<span>.</span></div>
+        <div className="login-title">SYSTEMSTOCK<span>.</span></div>
         <div className="login-sub">Controle de Estoque</div>
         <form onSubmit={go}>
           <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" inputMode="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@empresa.com" required autoFocus /></div>

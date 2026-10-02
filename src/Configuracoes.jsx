@@ -296,7 +296,7 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
         </p>
 
         <form onSubmit={saveEmpresa}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, marginBottom: 14 }}>
             <div>
               <label className="form-label">Nome da Empresa *</label>
               <input
@@ -309,11 +309,11 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
             </div>
             <div>
               <label className="form-label">Email Principal (Admin)</label>
-              <input className="form-input" value={user?.email || ""} disabled style={{ opacity: 0.7 }} />
+              <input className="form-input" value={user?.email || ""} disabled style={{ opacity: 0.8, textOverflow: "ellipsis" }} title={user?.email || ""} />
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, marginBottom: 16 }}>
             <div>
               <label className="form-label">ID da Empresa <span style={{ color: "var(--text-dim)", fontWeight: 400, fontSize: 10 }}>(usado no login do App)</span></label>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -322,10 +322,10 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
                   value={empresaData.companyId}
                   onChange={e => setEmpresaData(p => ({ ...p, companyId: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") }))}
                   placeholder="ex: minhaloja"
-                  style={{ fontFamily: "var(--mono)", color: "var(--accent)", fontWeight: 600, letterSpacing: 1 }}
+                  style={{ flex: 1, minWidth: 0, fontFamily: "var(--mono)", color: "var(--accent)", fontWeight: 600, letterSpacing: 1 }}
                   maxLength={32}
                 />
-                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px" }} onClick={() => copyToClipboard(empresaData.companyId, "ID da Empresa")}>
+                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px", flexShrink: 0 }} onClick={() => copyToClipboard(empresaData.companyId, "ID da Empresa")}>
                   <Icon name="copy" size={14} />
                 </button>
               </div>
@@ -340,20 +340,20 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
                   type={showPassword ? "text" : "password"}
                   value={empresaData.senhaApp}
                   onChange={e => setEmpresaData(p => ({ ...p, senhaApp: e.target.value }))}
-                  style={{ fontFamily: "var(--mono)", letterSpacing: showPassword ? 1 : 4, fontSize: 15 }}
+                  style={{ flex: 1, minWidth: 0, fontFamily: "var(--mono)", letterSpacing: showPassword ? 1 : 4, fontSize: 15 }}
                   required
                 />
-                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px" }} onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ocultar" : "Mostrar"}>
+                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px", flexShrink: 0 }} onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ocultar" : "Mostrar"}>
                   <Icon name={showPassword ? "eyeOff" : "eye"} size={14} />
                 </button>
-                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px", color: "var(--info)", borderColor: "var(--info)" }} onClick={generateNewPassword} title="Gerar Senha Aleatória">
+                <button type="button" className="btn btn-outline" style={{ padding: "10px 12px", color: "var(--info)", borderColor: "var(--info)", flexShrink: 0 }} onClick={generateNewPassword} title="Gerar Senha Aleatória">
                   <Icon name="refreshCw" size={14} />
                 </button>
               </div>
             </div>
           </div>
 
-          <button className="btn btn-accent" type="submit" disabled={saving} style={{ padding: "12px 24px" }}>
+          <button className="btn btn-accent" type="submit" disabled={saving} style={{ padding: "12px 24px", minWidth: 200 }}>
             {saving ? <><span className="spinner" /> SALVANDO...</> : <><Icon name="save" size={16} /> SALVAR ALTERAÇÕES</>}
           </button>
         </form>
@@ -469,8 +469,14 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
   const [savingUser, setSavingUser] = useState(false);
   const [sectorCategoriesList, setSectorCategoriesList] = useState([]);
   const [editingUserPresetId, setEditingUserPresetId] = useState(null);
+  const [editingUserSectorsId, setEditingUserSectorsId] = useState(null);
   const [editingUserPassId, setEditingUserPassId] = useState(null);
   const [editingUserPassVal, setEditingUserPassVal] = useState("");
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    addToast(`${label} copiado!`, "success");
+  };
 
   const loadSectors = async () => {
     if (!user?.email) return;
@@ -541,6 +547,39 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
       addToast(`Preset de "${uObj.nome}" atualizado!`, "success");
     } catch (e) {
       addToast("Erro ao atualizar preset: " + e.message, "error");
+    }
+  };
+
+  const toggleUserSectorAccess = async (uObj, targetSectorId) => {
+    if (!selectedSectorUsers || !user?.email) return;
+    const current = uObj.allowedSectors && uObj.allowedSectors.length > 0
+      ? uObj.allowedSectors
+      : [selectedSectorUsers.id];
+
+    if (targetSectorId === selectedSectorUsers.id && current.includes(targetSectorId)) {
+      addToast("O setor de origem do operador deve permanecer habilitado.", "warn");
+      return;
+    }
+
+    const updated = current.includes(targetSectorId)
+      ? current.filter(sId => sId !== targetSectorId)
+      : [...current, targetSectorId];
+
+    try {
+      await updateDoc(doc(db, `users/${user.email}/setores/${selectedSectorUsers.id}/req_usuarios`, uObj.id), {
+        allowedSectors: updated
+      });
+      if (uObj.userId) {
+        try {
+          await setDoc(doc(db, "req_user_logins", uObj.userId.toLowerCase()), {
+            allowedSectors: updated
+          }, { merge: true });
+        } catch {}
+      }
+      setSectorUsersList(prev => prev.map(item => item.id === uObj.id ? { ...item, allowedSectors: updated } : item));
+      addToast(`Acesso aos setores atualizado para "${uObj.nome}"!`, "success");
+    } catch (e) {
+      addToast("Erro ao atualizar setores: " + e.message, "error");
     }
   };
 
@@ -697,6 +736,7 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
         senha: finalPass,
         pin: finalPass,
         allowedCategories: [],
+        allowedSectors: [selectedSectorUsers.id],
         setorId: selectedSectorUsers.id,
         setorLabel: selectedSectorUsers.label,
         criadoEm: serverTimestamp()
@@ -713,6 +753,7 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
         senha: finalPass,
         pin: finalPass,
         allowedCategories: [],
+        allowedSectors: [selectedSectorUsers.id],
         criadoEm: serverTimestamp()
       });
 
@@ -1176,6 +1217,9 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                               <div style={{ background: "var(--surface)", border: "1px solid var(--border2)", padding: "3px 8px", borderRadius: "6px", fontSize: 11, fontFamily: "var(--mono)", display: "inline-flex", alignItems: "center", gap: 5 }}>
                                 <span style={{ color: "var(--text-dim)", fontSize: 10 }}>SENHA:</span>
                                 <strong style={{ color: "var(--success)" }}>{opPass}</strong>
+                                <button type="button" className="btn-ghost" style={{ padding: 1 }} onClick={() => copyToClipboard(opPass, `Senha de ${u.nome}`)} title="Copiar Senha">
+                                  <Icon name="copy" size={11} />
+                                </button>
                                 <button type="button" className="btn-ghost" style={{ padding: 1 }} onClick={() => { setEditingUserPassId(isEditingPass ? null : u.id); setEditingUserPassVal(opPass); }} title="Editar Senha">
                                   <Icon name="edit" size={11} />
                                 </button>
@@ -1184,6 +1228,12 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
 
                             <div style={{ fontSize: 11, fontFamily: "var(--sans)", color: allowed.length > 0 ? "var(--accent)" : "var(--text-dim)", marginTop: 6 }}>
                               {allowed.length > 0 ? `Categorias permitidas: ${allowed.join(", ")}` : "Acesso a todas as categorias"}
+                            </div>
+
+                            <div style={{ fontSize: 11, fontFamily: "var(--sans)", color: (u.allowedSectors?.length > 1) ? "var(--accent)" : "var(--text-dim)", marginTop: 2 }}>
+                              {u.allowedSectors?.length > 1
+                                ? `Setores habilitados: ${u.allowedSectors.map(sId => sectors.find(s => s.id === sId)?.label || sId).join(", ")}`
+                                : `Setor exclusivo: ${selectedSectorUsers.label}`}
                             </div>
                           </div>
 
@@ -1201,8 +1251,17 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                             )}
 
                             <button
+                              className={`btn-icon-sm ${editingUserSectorsId === u.id ? "edit-btn" : ""}`}
+                              onClick={() => { setEditingUserSectorsId(editingUserSectorsId === u.id ? null : u.id); setEditingUserPresetId(null); }}
+                              title="Habilitar em outros setores"
+                              style={{ borderColor: (u.allowedSectors?.length > 1) ? "var(--accent)" : undefined }}
+                            >
+                              <Icon name="grid" size={13} color={(u.allowedSectors?.length > 1) ? "var(--accent)" : undefined} />
+                            </button>
+
+                            <button
                               className={`btn-icon-sm ${isEditingPreset ? "edit-btn" : ""}`}
-                              onClick={() => setEditingUserPresetId(isEditingPreset ? null : u.id)}
+                              onClick={() => { setEditingUserPresetId(isEditingPreset ? null : u.id); setEditingUserSectorsId(null); }}
                               title="Configurar Filtro de Categorias"
                               style={{ borderColor: allowed.length > 0 ? "var(--accent)" : undefined }}
                             >
@@ -1267,6 +1326,37 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                             )}
                             <div style={{ fontSize: 10, fontFamily: "var(--sans)", color: "var(--text-dim)", marginTop: 8 }}>
                               * Se nenhuma categoria for selecionada, o operador terá acesso a todas as categorias.
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Editor de Setores Permitidos */}
+                        {editingUserSectorsId === u.id && (
+                          <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "8px", border: "1px solid var(--border2)", marginTop: 4 }}>
+                            <div style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+                              Setores Permitidos para {u.nome}:
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                              {sectors.map(sec => {
+                                const userSecs = u.allowedSectors && u.allowedSectors.length > 0 ? u.allowedSectors : [selectedSectorUsers.id];
+                                const isEnabled = userSecs.includes(sec.id);
+                                const isBase = sec.id === selectedSectorUsers.id;
+                                return (
+                                  <button
+                                    key={sec.id}
+                                    type="button"
+                                    className={`ftab ${isEnabled ? "active" : ""}`}
+                                    style={{ fontSize: 11, padding: "5px 10px" }}
+                                    onClick={() => toggleUserSectorAccess(u, sec.id)}
+                                  >
+                                    <Icon name={isEnabled ? "check" : "plus"} size={12} /> {sec.label}
+                                    {isBase && <span style={{ fontSize: 9, opacity: 0.7 }}>(base)</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div style={{ fontSize: 10, fontFamily: "var(--sans)", color: "var(--text-dim)", marginTop: 8 }}>
+                              * O operador só poderá acessar e visualizar os setores selecionados acima.
                             </div>
                           </div>
                         )}
@@ -1706,6 +1796,8 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
     );
   };
 
+  const isCaixaHabilitado = caixaAtivo === true;
+
   const InlineEditProd = ({ id, name, setName, price, setPrice, onSave, checkDup, onCancel }) => {
     const dup = checkDup(name, id);
     return (
@@ -1716,10 +1808,12 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
             onKeyDown={e => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
             style={{ flex: 2, background: "var(--surface2)", border: `1px solid ${dup ? "var(--warn)" : "var(--accent)"}`, color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 13, outline: "none", borderRadius: "var(--r)" }}
           />
-          <input type="number" step="0.01" min="0" placeholder="R$ Preço..." value={price} onChange={e => setPrice(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
-            style={{ width: 100, background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 13, outline: "none", borderRadius: "var(--r)" }}
-          />
+          {isCaixaHabilitado && (
+            <input type="number" step="0.01" min="0" placeholder="R$ Preço..." value={price} onChange={e => setPrice(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
+              style={{ width: 100, background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 13, outline: "none", borderRadius: "var(--r)" }}
+            />
+          )}
           <button className="btn-icon-sm" style={{ borderColor: "var(--success)", color: "var(--success)" }} onClick={onSave} disabled={!!dup}><Icon name="check" size={14} /></button>
           <button className="btn-icon-sm" onClick={onCancel}><Icon name="x" size={13} /></button>
         </div>
@@ -1727,8 +1821,6 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
       </div>
     );
   };
-
-  const isCaixaHabilitado = caixaAtivo === true;
 
   const mainTabs = [
     { id: "empresa", icon: "building", label: "Empresa & Acesso App" },
@@ -1900,7 +1992,7 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
   );
 }
 
-export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, getCol: propGetCol, registrarLog, db: propDb }) {
+export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, getCol: propGetCol, registrarLog, db: propDb, caixaAtivo }) {
   const _db = propDb || db;
   const _getCol = propGetCol || getCol;
 
@@ -1931,6 +2023,7 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
   const prodItemRefs = useRef({});
 
   const [modoLoja, setModoLoja] = useState(false);
+  const isCaixaHabilitado = caixaAtivo !== undefined ? Boolean(caixaAtivo) : Boolean(modoLoja || user?.caixaAtivo);
 
   const colCat = _getCol(setor, "categorias");
   const colPadrao = _getCol(setor, "produtos_padrao");
@@ -2001,10 +2094,10 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
   const addProd = async () => {
     if (!nomeProd.trim() || !catProd) { addToast("Preencha nome e categoria.", "error"); return; }
     if (dupProd) { addToast(`"${dupProd.nome}" já existe.`, "error"); return; }
-    if (modoLoja && (!precoVenda || isNaN(parseFloat(precoVenda)) || parseFloat(precoVenda) < 0)) { addToast("Informe um valor unitário válido (Loja ativa).", "error"); return; }
+    if (isCaixaHabilitado && modoLoja && (!precoVenda || isNaN(parseFloat(precoVenda)) || parseFloat(precoVenda) < 0)) { addToast("Informe um valor unitário válido (Loja ativa).", "error"); return; }
     try {
       const prodData = { nome: nomeProd.trim(), categoria: catProd, criadoEm: new Date().toISOString() };
-      if (precoVenda !== "" && !isNaN(parseFloat(precoVenda))) {
+      if (isCaixaHabilitado && precoVenda !== "" && !isNaN(parseFloat(precoVenda))) {
         prodData.precoVenda = parseFloat(precoVenda);
       }
       await addDoc(collection(_db, colPadrao), prodData);
@@ -2023,7 +2116,7 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
     const novo = editProdVal.trim();
     const novoPreco = editProdPreco.trim();
     if (!novo) { addToast("Nome do produto não pode ser vazio.", "error"); return; }
-    if (modoLoja && (!novoPreco || isNaN(parseFloat(novoPreco)) || parseFloat(novoPreco) < 0)) { addToast("Informe um valor unitário válido (Loja ativa).", "error"); return; }
+    if (isCaixaHabilitado && modoLoja && (!novoPreco || isNaN(parseFloat(novoPreco)) || parseFloat(novoPreco) < 0)) { addToast("Informe um valor unitário válido (Loja ativa).", "error"); return; }
 
     if (novo !== p.nome) {
       const dup = checkEditProdDup(novo, p.id);
@@ -2031,7 +2124,7 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
     }
 
     try {
-      const isPrecoValido = novoPreco !== "" && !isNaN(parseFloat(novoPreco));
+      const isPrecoValido = isCaixaHabilitado && novoPreco !== "" && !isNaN(parseFloat(novoPreco));
       const precoFinal = isPrecoValido ? parseFloat(novoPreco) : null;
 
       await updateDoc(doc(_db, colPadrao, p.id), { nome: novo, precoVenda: precoFinal });
@@ -2075,10 +2168,12 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
             onKeyDown={e => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
             style={{ flex: 2, background: "var(--surface2)", border: `1px solid ${dup ? "var(--warn)" : "var(--accent)"}`, color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 13, outline: "none", borderRadius: "var(--r)" }}
           />
-          <input type="number" step="0.01" min="0" placeholder="R$ Preço..." value={price} onChange={e => setPrice(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
-            style={{ width: 100, background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 13, outline: "none", borderRadius: "var(--r)" }}
-          />
+          {isCaixaHabilitado && (
+            <input type="number" step="0.01" min="0" placeholder="R$ Preço..." value={price} onChange={e => setPrice(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
+              style={{ width: 100, background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", padding: "7px 10px", fontFamily: "var(--mono)", fontSize: 13, outline: "none", borderRadius: "var(--r)" }}
+            />
+          )}
           <button className="btn-icon-sm" style={{ borderColor: "var(--success)", color: "var(--success)" }} onClick={onSave} disabled={!!dup}><Icon name="check" size={14} /></button>
           <button className="btn-icon-sm" onClick={onCancel}><Icon name="x" size={13} /></button>
         </div>
@@ -2147,22 +2242,24 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
             <option value="">Selecionar categoria...</option>
             {cats.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
           </select>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input className="form-input" placeholder="Nome do produto..." value={nomeProd}
               onChange={e => setNomeProd(e.target.value)} onKeyDown={e => e.key === "Enter" && addProd()}
-              style={{ flex: 1, borderColor: dupProd ? "var(--warn)" : undefined }} />
-            <input className="form-input" type="number" min="0" step="0.01"
-              placeholder={modoLoja ? "R$ Preço *" : "R$ Preço (opcional)"}
-              value={precoVenda} onChange={e => setPrecoVenda(e.target.value)}
-              style={{ width: 150, flexShrink: 0 }} />
-            <button className="btn btn-accent" onClick={addProd} disabled={!!dupProd} style={{ padding: "12px 16px", opacity: dupProd ? .4 : 1 }}>
+              style={{ flex: "1 1 200px", minWidth: 160, borderColor: dupProd ? "var(--warn)" : undefined }} />
+            {isCaixaHabilitado && (
+              <input className="form-input" type="number" min="0" step="0.01"
+                placeholder={modoLoja ? "R$ Preço *" : "R$ Preço (opcional)"}
+                value={precoVenda} onChange={e => setPrecoVenda(e.target.value)}
+                style={{ width: 140, flex: "0 1 140px", flexShrink: 0 }} />
+            )}
+            <button className="btn btn-accent" onClick={addProd} disabled={!!dupProd} style={{ padding: "12px 16px", opacity: dupProd ? .4 : 1, flexShrink: 0 }}>
               <Icon name="plus" size={16} />
             </button>
           </div>
         </div>
         {dupProd && <DupAlert tipo="prod" existente={dupProd} onDismiss={() => setNomeProd("")}
           onScrollTo={() => scrollTo(dupProd.id, prodItemRefs, setHighlightProd)}
-          onEdit={() => { scrollTo(dupProd.id, prodItemRefs, setHighlightProd); setTimeout(() => { setEditProdId(dupProd.id); setEditProdVal(dupProd.nome); setEditProdPreco(String(dupProd.precoVenda ?? "")); }, 300); setNomeProd(""); }}
+          onEdit={() => { scrollTo(dupProd.id, prodItemRefs, setHighlightProd); setTimeout(() => { setEditProdId(dupProd.id); setEditProdVal(dupProd.nome); setEditProdPreco(isCaixaHabilitado ? String(dupProd.precoVenda ?? "") : ""); }, 300); setNomeProd(""); }}
           onDelete={() => { delProd(dupProd); setNomeProd(""); }} />}
         <SearchBox value={searchProd} onChange={setSearchProd} placeholder="Filtrar produtos do catálogo..." />
         {(() => {
@@ -2185,10 +2282,10 @@ export function ConfigProdutosCategorias({ setor, user, addToast, resolveSetor, 
                           ? <InlineEditProd id={p.id} name={editProdVal} setName={setEditProdVal} price={editProdPreco} setPrice={setEditProdPreco} onSave={() => saveProd(p)} checkDup={checkEditProdDup} onCancel={() => setEditProdId(null)} />
                           : <>
                             <span style={{ fontFamily: "var(--mono)", fontSize: 13, flex: 1 }}>{p.nome}</span>
-                            {p.precoVenda != null && <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", marginRight: 12, fontWeight: 600 }}>R$ {Number(p.precoVenda).toFixed(2)}</span>}
+                            {isCaixaHabilitado && p.precoVenda != null && <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--accent)", marginRight: 12, fontWeight: 600 }}>R$ {Number(p.precoVenda).toFixed(2)}</span>}
                           </>}
                         {editProdId !== p.id && <div style={{ display: "flex", gap: 4 }}>
-                          <button className="btn-icon-sm edit-btn" onClick={() => { setEditProdId(p.id); setEditProdVal(p.nome); setEditProdPreco(String(p.precoVenda ?? "")); }}><Icon name="edit" size={14} /></button>
+                          <button className="btn-icon-sm edit-btn" onClick={() => { setEditProdId(p.id); setEditProdVal(p.nome); setEditProdPreco(isCaixaHabilitado ? String(p.precoVenda ?? "") : ""); }}><Icon name="edit" size={14} /></button>
                           <button className="btn-icon-sm" onClick={() => delProd(p)}><Icon name="trash" size={14} /></button>
                         </div>}
                       </div>

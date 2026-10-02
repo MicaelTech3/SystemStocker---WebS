@@ -409,7 +409,7 @@ export default function Caixa() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Caixa POS - " + (empresaDoc?.nomeEmpresa || "SystemStocker"),
+          title: "Caixa POS - " + (empresaDoc?.nomeEmpresa || "SystemStock"),
           url: shareUrl
         });
       } catch (e) {
