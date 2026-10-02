@@ -14,6 +14,7 @@ import { Icon } from "./icons.jsx";
 // ─── Chaves de Sessão ─────────────────────────────────────────
 const SETOR_SESSION_KEY = "req_setor_session_v2";
 const COMPANY_SESSION_KEY = "req_company_session_v2";
+const OPERATOR_SESSION_KEY = "req_operator_session_v2";
 
 function saveSetorSession(setorKey) {
   try { localStorage.setItem(SETOR_SESSION_KEY, JSON.stringify({ setorKey, ts: Date.now() })); } catch { }
@@ -43,6 +44,22 @@ function loadCompanySession() {
 }
 function clearCompanySession() {
   try { localStorage.removeItem(COMPANY_SESSION_KEY); } catch { }
+}
+
+function saveOperatorSession(opData) {
+  try { localStorage.setItem(OPERATOR_SESSION_KEY, JSON.stringify({ ...opData, ts: Date.now() })); } catch { }
+}
+function loadOperatorSession() {
+  try {
+    const raw = localStorage.getItem(OPERATOR_SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (Date.now() - s.ts > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem(OPERATOR_SESSION_KEY); return null; }
+    return s;
+  } catch { return null; }
+}
+function clearOperatorSession() {
+  try { localStorage.removeItem(OPERATOR_SESSION_KEY); } catch { }
 }
 
 // ─── CSS Styles ───────────────────────────────────────────────
@@ -265,44 +282,74 @@ const ToastEl = ({ toasts }) => (
   </div>
 );
 
-// ─── LOGIN DE EMPRESA (ID + SENHA) ───────────────────────────
-function CompanyLoginScreen({ onLoginSuccess, initialEmpresaId }) {
-  const [empresaIdInput, setEmpresaIdInput] = useState(initialEmpresaId || "");
+// ─── LOGIN DO APP DE REQUISIÇÃO (ID + SENHA) ─────────────────
+function ReqLoginScreen({ onLoginSuccess, initialId }) {
+  const [idInput, setIdInput] = useState(initialId || "");
   const [senhaInput, setSenhaInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const cleanId = empresaIdInput.trim().toLowerCase();
-    if (!cleanId) { setErr("Digite o ID da Empresa."); return; }
+    const cleanId = idInput.trim().toUpperCase();
+    const cleanIdLower = idInput.trim().toLowerCase();
+    if (!cleanId) { setErr("Digite o ID de Acesso."); return; }
     if (!senhaInput.trim()) { setErr("Digite a Senha de Acesso."); return; }
 
     setLoading(true);
     setErr("");
     try {
-      // 1. Buscar o email real pelo ID curto na coleção de índice
-      const idxSnap = await getDoc(doc(db, "company_ids", cleanId));
-      let realEmail = null;
-      if (idxSnap.exists()) {
-        realEmail = idxSnap.data().email;
+      // 1. Checar se é login direto de Operador (3 letras + 3 números ex: ABC123)
+      const opSnap = await getDoc(doc(db, "req_user_logins", cleanIdLower));
+      if (opSnap.exists()) {
+        const opData = opSnap.data();
+        const expectedSenha = opData.senha || opData.pin || "1234";
+        if (senhaInput.trim() === expectedSenha) {
+          saveOperatorSession(opData);
+          saveCompanySession(opData.adminEmail, opData.nomeEmpresa || opData.adminEmail);
+          saveSetorSession(opData.setorId);
+          onLoginSuccess({
+            type: "operator",
+            empresaId: opData.adminEmail,
+            nomeEmpresa: opData.nomeEmpresa || opData.adminEmail,
+            setorKey: opData.setorId,
+            operator: opData
+          });
+          return;
+        }
       }
 
-      // 2. Carregar dados da empresa usando o email real
+      // 2. Checar se é login por ID da Empresa
+      const compSnap = await getDoc(doc(db, "company_ids", cleanIdLower));
+      let realEmail = null;
+      if (compSnap.exists()) {
+        realEmail = compSnap.data().email;
+      } else if (cleanIdLower.includes("@")) {
+        realEmail = cleanIdLower;
+      }
+
       if (realEmail) {
         const docSnap = await getDoc(doc(db, "users", realEmail));
         if (docSnap.exists()) {
           const data = docSnap.data();
           const expectedSenha = data.senhaApp || data.senha || "123456";
           if (senhaInput.trim() === expectedSenha) {
+            clearOperatorSession();
             saveCompanySession(realEmail, data.nomeEmpresa || realEmail);
-            onLoginSuccess(realEmail, data.nomeEmpresa || realEmail);
+            onLoginSuccess({
+              type: "company",
+              empresaId: realEmail,
+              nomeEmpresa: data.nomeEmpresa || realEmail,
+              setorKey: null,
+              operator: null
+            });
             return;
           }
         }
       }
 
-      setErr("ID ou Senha de Acesso incorretos.");
+      setErr("ID de Acesso ou Senha incorretos.");
     } catch (e) {
       setErr("Erro de conexão: " + e.message);
     } finally {
@@ -312,39 +359,54 @@ function CompanyLoginScreen({ onLoginSuccess, initialEmpresaId }) {
 
   return (
     <div className="animate-fade-in" style={{ padding: "40px 10px" }}>
-      <div className="card hover-lift" style={{ maxWidth: 380, margin: "0 auto", padding: 32 }}>
+      <div className="card hover-lift" style={{ maxWidth: 400, margin: "0 auto", padding: 32 }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ display: "inline-flex", width: 54, height: 54, borderRadius: "50%", background: "var(--accent-light)", color: "var(--accent)", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
-            <Icon name="building" size={28} />
+          <div style={{ display: "inline-flex", width: 58, height: 58, borderRadius: "50%", background: "var(--accent-light)", color: "var(--accent)", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+            <Icon name="package" size={30} />
           </div>
-          <div className="page-title" style={{ fontSize: 28, color: "var(--accent)" }}>ACESSO DA EMPRESA</div>
-          <div className="page-sub">Digite as credenciais fornecidas pelo administrador</div>
+          <div className="page-title" style={{ fontSize: 28, color: "var(--accent)" }}>ACESSO REQUISIÇÃO</div>
+          <div className="page-sub">Digite seu ID de Acesso e Senha para entrar direto no seu setor</div>
         </div>
 
         <form onSubmit={handleLogin}>
           <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label">ID da Empresa</label>
+            <label className="form-label">ID de Acesso (Usuário ou Empresa)</label>
             <input
               className="form-input"
-              placeholder="ex: minhaloja"
-              value={empresaIdInput}
-              onChange={e => setEmpresaIdInput(e.target.value.toLowerCase().replace(/\s/g, ""))}
+              placeholder="ex: ABC123"
+              value={idInput}
+              onChange={e => setIdInput(e.target.value.toUpperCase().replace(/\s/g, ""))}
               required
               autoFocus
-              style={{ fontFamily: "var(--mono)", letterSpacing: 1 }}
+              style={{ fontFamily: "var(--mono)", letterSpacing: 2, fontWeight: 700, fontSize: 15 }}
             />
+            <span style={{ fontSize: 9, fontFamily: "var(--mono)", color: "var(--text-dim)", marginTop: 4, display: "block" }}>
+              * Usuários: código de 3 letras e 3 números gerado pelo Admin
+            </span>
           </div>
 
           <div className="form-group" style={{ marginBottom: 18 }}>
-            <label className="form-label">Senha de Acesso do App</label>
-            <input
-              className="form-input"
-              type="password"
-              placeholder="••••••••"
-              value={senhaInput}
-              onChange={e => setSenhaInput(e.target.value)}
-              required
-            />
+            <label className="form-label">Senha de Acesso</label>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                className="form-input"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={senhaInput}
+                onChange={e => setSenhaInput(e.target.value)}
+                required
+                style={{ fontFamily: "var(--mono)", letterSpacing: showPassword ? 1 : 4, fontSize: 15 }}
+              />
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ padding: "10px 12px" }}
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? "Ocultar Senha" : "Ver Senha"}
+              >
+                <Icon name={showPassword ? "eyeOff" : "eye"} size={14} />
+              </button>
+            </div>
           </div>
 
           {err && (
@@ -354,7 +416,7 @@ function CompanyLoginScreen({ onLoginSuccess, initialEmpresaId }) {
           )}
 
           <button className="btn btn-accent btn-lg btn-full" type="submit" disabled={loading}>
-            {loading ? <><span className="spinner" /> VERIFICANDO...</> : <><Icon name="login" size={16} /> ENTRAR NO APP</>}
+            {loading ? <><span className="spinner" /> VERIFICANDO...</> : <><Icon name="login" size={16} /> ENTRAR NO SETOR</>}
           </button>
         </form>
       </div>
@@ -635,20 +697,26 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
 }
 
 // ─── FORMULÁRIO DE REQUISIÇÃO ────────────────────────────────
-function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast }) {
+function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeUserProp, onLogoutOperator }) {
   const [itens, setItens] = useState([]);
   const [obs, setObs] = useState("");
-  const [solicitante, setSolicitante] = useState("");
+  const [solicitante, setSolicitante] = useState(activeUserProp?.nome || "");
   const [usuarios, setUsuarios] = useState([]);
-  const [activeUser, setActiveUser] = useState(null);
+  const [activeUser, setActiveUser] = useState(activeUserProp || null);
   const [userPinModal, setUserPinModal] = useState(null);
   const [userPinInput, setUserPinInput] = useState("");
   const [userPinErr, setUserPinErr] = useState("");
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(!activeUserProp);
   const [loading, setLoading] = useState(false);
   const [enviado, setEnviado] = useState(null);
 
   useEffect(() => {
+    if (activeUserProp) {
+      setActiveUser(activeUserProp);
+      setSolicitante(activeUserProp.nome);
+      setLoadingUsers(false);
+      return;
+    }
     getDocs(collection(db, getColPrivate(setorKey, "req_usuarios")))
       .then(s => {
         const list = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nome.localeCompare(b.nome));
@@ -664,7 +732,7 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast }) {
       })
       .catch(() => setUsuarios([]))
       .finally(() => setLoadingUsers(false));
-  }, [setorKey]);
+  }, [setorKey, activeUserProp]);
 
   const handleSelectUser = (u) => {
     if (u.pin && u.pin.trim()) {
@@ -694,6 +762,10 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast }) {
   };
 
   const handleLogoutUser = () => {
+    if (onLogoutOperator) {
+      onLogoutOperator();
+      return;
+    }
     sessionStorage.removeItem(`req_operator_${setorKey}`);
     setActiveUser(null);
     setSolicitante("");
@@ -725,7 +797,9 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast }) {
       const codigo = genCodigo();
       await addDoc(collection(db, getColPrivate(setorKey, "requisicoes")), {
         codigo, setor: setorKey, setorLabel: setor.label,
-        solicitante: nomeSolicitante, itens,
+        solicitante: nomeSolicitante,
+        operadorId: activeUser?.userId || null,
+        itens,
         observacao: obs.trim(), status: "pendente",
         criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp(),
       });
@@ -777,19 +851,26 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Icon name="userCheck" size={18} color="var(--accent)" />
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{activeUser.nome}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>{activeUser.nome}</span>
+                    {activeUser.userId && (
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 10, background: "var(--surface)", border: "1px solid var(--border2)", padding: "2px 6px", borderRadius: "4px", color: "var(--accent)" }}>
+                        ID: {activeUser.userId}
+                      </span>
+                    )}
+                  </div>
                   {activeUser.allowedCategories?.length > 0 ? (
-                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)" }}>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", marginTop: 2 }}>
                       Filtro de Categorias: {activeUser.allowedCategories.join(", ")}
                     </div>
                   ) : (
-                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--success)" }}>
-                      Acesso Total
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--success)", marginTop: 2 }}>
+                      Acesso Total (Todas as Categorias)
                     </div>
                   )}
                 </div>
               </div>
-              <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: 11 }} onClick={handleLogoutUser} title="Trocar de Usuário">
+              <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: 11 }} onClick={handleLogoutUser} title="Trocar de Usuário / Sair">
                 <Icon name="refreshCw" size={12} /> Alternar
               </button>
             </div>
@@ -949,10 +1030,15 @@ function HistoricoRequisicoes({ setorKey, setor, getColPrivate }) {
 export default function RequisicaoApp() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
 
-  // Sessão da Empresa (ID + Nome)
-  // O parâmetro ?empresa= agora contém o companyId curto, não o email.
-  // Ele apenas pré-preenche a tela de login; a sessão real é resolvida após autenticação.
-  const [companySession, setCompanySession] = useState(() => loadCompanySession());
+  // Sessão do Operador e da Empresa
+  const [operatorSession, setOperatorSession] = useState(() => loadOperatorSession());
+  const [companySession, setCompanySession] = useState(() => {
+    const op = loadOperatorSession();
+    if (op?.adminEmail) {
+      return { empresaId: op.adminEmail, nomeEmpresa: op.nomeEmpresa || op.adminEmail };
+    }
+    return loadCompanySession();
+  });
   const initialEmpresaParam = new URLSearchParams(window.location.search).get("empresa") || "";
 
   const empresaId = companySession?.empresaId || "default";
@@ -962,8 +1048,17 @@ export default function RequisicaoApp() {
 
   const [sectors, setSectors] = useState([]);
   const [loadingSectors, setLoadingSectors] = useState(false);
-  const [setorKey, setSetorKey] = useState(() => loadSetorSession()?.setorKey ?? null);
-  const [fase, setFase] = useState(() => loadSetorSession()?.setorKey ? "form" : "setores");
+  const [setorKey, setSetorKey] = useState(() => {
+    const op = loadOperatorSession();
+    if (op?.setorId) return op.setorId;
+    return loadSetorSession()?.setorKey ?? null;
+  });
+  const [activeUser, setActiveUser] = useState(() => loadOperatorSession());
+  const [fase, setFase] = useState(() => {
+    const op = loadOperatorSession();
+    if (op?.setorId) return "form";
+    return loadSetorSession()?.setorKey ? "form" : "setores";
+  });
   const [subTab, setSubTab] = useState("form");
   const [showLogout, setShowLogout] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -1054,8 +1149,25 @@ export default function RequisicaoApp() {
     toast(`Setor ${sectorObj?.label || setorKey} selecionado`, "success");
   };
 
+  const handleLoginSuccess = ({ type, empresaId, nomeEmpresa, setorKey: sKey, operator }) => {
+    setCompanySession({ empresaId, nomeEmpresa });
+    if (type === "operator" && sKey && operator) {
+      setSetorKey(sKey);
+      setActiveUser(operator);
+      setOperatorSession(operator);
+      setFase("form");
+      toast(`Bem-vindo, ${operator.nome}! Setor ${operator.setorLabel || sKey} conectado.`, "success");
+    } else {
+      setFase("setores");
+      toast(`Empresa ${nomeEmpresa} conectada!`, "success");
+    }
+  };
+
   const handleLogoutSetor = () => {
     clearSetorSession();
+    clearOperatorSession();
+    setActiveUser(null);
+    setOperatorSession(null);
     setSetorKey(null);
     setFase("setores");
     setSubTab("form");
@@ -1067,11 +1179,14 @@ export default function RequisicaoApp() {
   const handleLogoutEmpresa = () => {
     clearSetorSession();
     clearCompanySession();
+    clearOperatorSession();
+    setOperatorSession(null);
+    setActiveUser(null);
     setCompanySession(null);
     setSetorKey(null);
     setFase("setores");
     setShowSidebar(false);
-    toast("Sessão da empresa encerrada", "info");
+    toast("Sessão encerrada", "info");
   };
 
   const caixaUrl = `${window.location.origin}/caixa?empresa=${encodeURIComponent(companySession?.empresaId || "")}`;
@@ -1099,9 +1214,16 @@ export default function RequisicaoApp() {
               <Icon name="package" size={20} color="var(--accent)" /> SYS
             </div>
             {setor && fase === "form" && (
-              <span className="setor-pill" style={{ color: setor.color, borderColor: setor.color }}>
-                <Icon name={setor.iconName || "package"} size={14} color={setor.color} /> {setor.label}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap" }}>
+                <span className="setor-pill" style={{ color: setor.color, borderColor: setor.color }}>
+                  <Icon name={setor.iconName || "package"} size={14} color={setor.color} /> {setor.label}
+                </span>
+                {activeUser && (
+                  <span className="setor-pill" style={{ background: "var(--surface2)", borderColor: "var(--border2)", color: "var(--text)" }}>
+                    <Icon name="userCheck" size={13} color="var(--accent)" /> {activeUser.nome}
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -1128,7 +1250,7 @@ export default function RequisicaoApp() {
                   className="req-badge"
                   style={{ borderColor: "var(--danger)", color: "var(--danger)", padding: "6px 10px" }}
                   onClick={() => setShowLogout(true)}
-                  title="Sair / Trancar Setor (Cadeado)"
+                  title="Sair / Trocar de Usuário ou Setor"
                 >
                   <Icon name="lock" size={16} />
                 </button>
@@ -1164,6 +1286,11 @@ export default function RequisicaoApp() {
                   <div style={{ fontSize: 13, color: setor.color || "var(--accent)", fontWeight: 600, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
                     <Icon name={setor.iconName || "package"} size={15} color={setor.color} /> {setor.label}
                   </div>
+                  {activeUser && (
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
+                      Operador: <strong style={{ color: "var(--text)" }}>{activeUser.nome}</strong> (ID: {activeUser.userId || "—"})
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1285,7 +1412,7 @@ export default function RequisicaoApp() {
                 {companySession && (
                   <button className="modal-nav-item" style={{ color: "var(--danger)" }} onClick={handleLogoutEmpresa}>
                     <span className="modal-nav-item-icon"><Icon name="logout" size={18} /></span>
-                    <span>Sair da Empresa</span>
+                    <span>Sair da Conta / Empresa</span>
                   </button>
                 )}
               </div>
@@ -1296,11 +1423,11 @@ export default function RequisicaoApp() {
         {/* Conteúdo Principal */}
         <div className="req-content">
 
-          {/* Login de Empresa (caso não esteja logado) */}
+          {/* Login de Requisição (caso não esteja logado) */}
           {!companySession && (
-            <CompanyLoginScreen
-              onLoginSuccess={(id, nome) => setCompanySession({ empresaId: id, nomeEmpresa: nome })}
-              initialEmpresaId={initialEmpresaParam}
+            <ReqLoginScreen
+              onLoginSuccess={handleLoginSuccess}
+              initialId={initialEmpresaParam}
             />
           )}
 
@@ -1352,7 +1479,17 @@ export default function RequisicaoApp() {
           {/* Formulário / Histórico do Pedido */}
           {companySession && fase === "form" && setor && (
             <div>
-              {subTab === "form" && <FormRequisicao setorKey={setorKey} setor={setor} getCol={getCol} getColPrivate={getColPrivate} toast={toast} />}
+              {subTab === "form" && (
+                <FormRequisicao
+                  setorKey={setorKey}
+                  setor={setor}
+                  getCol={getCol}
+                  getColPrivate={getColPrivate}
+                  toast={toast}
+                  activeUserProp={activeUser}
+                  onLogoutOperator={handleLogoutSetor}
+                />
+              )}
               {subTab === "hist" && <HistoricoRequisicoes setorKey={setorKey} setor={setor} getColPrivate={getColPrivate} />}
             </div>
           )}
