@@ -81,14 +81,15 @@ function DupAlert({ tipo, existente, onScrollTo, onEdit, onDelete, onDismiss }) 
 // ============================================================
 // CONFIG EMPRESA & ACESSO APP
 // ============================================================
-export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav }) {
+export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav, caixaAtivo }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [empresaData, setEmpresaData] = useState({
     nomeEmpresa: "",
     companyId: "",
     senhaApp: "",
-    numero: ""
+    numero: "",
+    caixaAtivo: false
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -104,7 +105,8 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
           nomeEmpresa: data.nomeEmpresa || data.nome || "",
           companyId: data.companyId || user.email,
           senhaApp: data.senhaApp || data.senha || "123456",
-          numero: data.numero || ""
+          numero: data.numero || "",
+          caixaAtivo: data.caixaAtivo === true
         });
       } else {
         // Inicializa dados padrão da empresa
@@ -114,6 +116,7 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
           companyId: defaultCompanyId || user.email,
           senhaApp: "123456",
           email: user.email,
+          caixaAtivo: false,
           criadoEm: new Date().toISOString()
         };
         await setDoc(docRef, defaultData, { merge: true });
@@ -171,7 +174,13 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
 
   const [entryMode, setEntryMode] = useState(() => localStorage.getItem("app_entry_mode") || "sys");
 
+  const isCaixaPermitido = caixaAtivo ?? empresaData.caixaAtivo;
+
   const changeEntryMode = (mode) => {
+    if (mode === "caixa" && !isCaixaPermitido) {
+      addToast("O Modo Caixa (POS) não está habilitado para esta empresa. Ative no Painel Dev.", "warn");
+      return;
+    }
     setEntryMode(mode);
     localStorage.setItem("app_entry_mode", mode);
     window.dispatchEvent(new Event("appEntryModeChanged"));
@@ -206,12 +215,12 @@ export function ConfigEmpresa({ user, addToast, showBottomNav, onToggleBottomNav
           <button
             type="button"
             className={`btn ${entryMode === "caixa" ? "btn-accent" : "btn-outline"}`}
-            style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto" }}
+            style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 12px", height: "auto", opacity: isCaixaPermitido ? 1 : 0.6 }}
             onClick={() => changeEntryMode("caixa")}
           >
-            <Icon name="store" size={22} color={entryMode === "caixa" ? "#000" : "var(--success)"} />
+            <Icon name={isCaixaPermitido ? "store" : "lock"} size={22} color={entryMode === "caixa" ? "#000" : isCaixaPermitido ? "var(--success)" : "var(--text-dim)"} />
             <span style={{ fontWeight: 700, fontSize: 13 }}>Caixa (POS)</span>
-            <span style={{ fontSize: 9, opacity: 0.8 }}>(Frente de Caixa)</span>
+            <span style={{ fontSize: 9, opacity: 0.8 }}>{isCaixaPermitido ? "(Frente de Caixa)" : "(Bloqueado - Dev)"}</span>
           </button>
 
           <button
@@ -1021,7 +1030,7 @@ export function ConfigRequisicao({ setor, addToast }) {
 // ============================================================
 // CONFIGURACOES (Componente Principal da Aba)
 // ============================================================
-export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, resolveSetor, getCol: getColProp, registrarLog, db: dbProp, initialSubTab, showBottomNav, onToggleBottomNav }) {
+export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, resolveSetor, getCol: getColProp, registrarLog, db: dbProp, initialSubTab, showBottomNav, onToggleBottomNav, caixaAtivo }) {
   const _db = dbProp || db;
   const _getCol = getColProp || getCol;
 
@@ -1264,10 +1273,14 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
     );
   };
 
+  const isCaixaHabilitado = caixaAtivo === true;
+
   const mainTabs = [
     { id: "empresa", icon: "building", label: "Empresa & Acesso App" },
-    { id: "caixas", icon: "store", label: "Monitoramento de Caixas" },
-    { id: "loja", icon: "settings", label: "Config. POS (Caixa)" },
+    ...(isCaixaHabilitado ? [
+      { id: "caixas", icon: "store", label: "Monitoramento de Caixas" },
+      { id: "loja", icon: "settings", label: "Config. POS (Caixa)" },
+    ] : []),
     { id: "estoque", icon: "barChart", label: "Limites de Alerta" },
   ];
 
@@ -1293,33 +1306,48 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
       </div>
 
       {/* Conteúdo da Aba Selecionada */}
-      {configSubTab === "empresa" && <ConfigEmpresa user={user} addToast={addToast} showBottomNav={showBottomNav} onToggleBottomNav={onToggleBottomNav} />}
+      {configSubTab === "empresa" && <ConfigEmpresa user={user} addToast={addToast} showBottomNav={showBottomNav} onToggleBottomNav={onToggleBottomNav} caixaAtivo={caixaAtivo} />}
 
       {configSubTab === "caixas" && (
-        <ConfigCaixasAdmin user={user} setor={setor} addToast={addToast} resolveSetor={resolveSetor} />
+        isCaixaHabilitado ? (
+          <ConfigCaixasAdmin user={user} setor={setor} addToast={addToast} resolveSetor={resolveSetor} />
+        ) : (
+          <div className="card hover-lift animate-slide-up" style={{ textAlign: "center", padding: 32 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(245,158,11,0.12)", color: "var(--warn)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <Icon name="lock" size={26} />
+            </div>
+            <div style={{ fontFamily: "var(--display)", fontSize: 22, color: "var(--accent)", letterSpacing: 1, marginBottom: 8 }}>
+              MÓDULO CAIXA NÃO HABILITADO
+            </div>
+            <p style={{ fontFamily: "var(--sans)", fontSize: 13, color: "var(--text-mid)", maxWidth: 460, margin: "0 auto 16px", lineHeight: 1.5 }}>
+              Todas as contas iniciam sem permissão de Frente de Caixa. Para liberar o monitoramento de caixas nesta empresa, solicite ao desenvolvedor a ativação no Painel Dev.
+            </p>
+          </div>
+        )
       )}
 
       {configSubTab === "loja" && (
-        <div className="card hover-lift animate-slide-up">
-          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Icon name="store" size={20} color="var(--accent)" /> MÓDULO FRENTE DE CAIXA (POS)
-          </div>
-          <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 16 }}>
-            Habilite a frente de caixa para vendas diretas ao cliente final, puxando itens do estoque.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "var(--sans)", fontSize: 14, fontWeight: 500 }}>Habilitar Frente de Caixa</span>
-              <button
-                className={`btn ${modoLoja ? "btn-accent" : "btn-outline"}`}
-                style={{ fontSize: 11, padding: "7px 16px" }}
-                onClick={() => saveLojaConfig(!modoLoja, fluxoLoja)}
-                disabled={savingLoja}
-              >
-                <Icon name={modoLoja ? "checkCircle" : "x"} size={14} />
-                {modoLoja ? "ATIVADO" : "DESATIVADO"}
-              </button>
+        isCaixaHabilitado ? (
+          <div className="card hover-lift animate-slide-up">
+            <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Icon name="store" size={20} color="var(--accent)" /> MÓDULO FRENTE DE CAIXA (POS)
             </div>
+            <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)", marginBottom: 16 }}>
+              Habilite a frente de caixa para vendas diretas ao cliente final, puxando itens do estoque.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: "var(--sans)", fontSize: 14, fontWeight: 500 }}>Habilitar Frente de Caixa</span>
+                <button
+                  className={`btn ${modoLoja ? "btn-accent" : "btn-outline"}`}
+                  style={{ fontSize: 11, padding: "7px 16px" }}
+                  onClick={() => saveLojaConfig(!modoLoja, fluxoLoja)}
+                  disabled={savingLoja}
+                >
+                  <Icon name={modoLoja ? "checkCircle" : "x"} size={14} />
+                  {modoLoja ? "ATIVADO" : "DESATIVADO"}
+                </button>
+              </div>
 
             {modoLoja && (
               <>
@@ -1362,6 +1390,19 @@ export function Configuracoes({ setor, user, addToast, thresh, onThreshChange, r
             )}
           </div>
         </div>
+        ) : (
+          <div className="card hover-lift animate-slide-up" style={{ textAlign: "center", padding: 32 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(245,158,11,0.12)", color: "var(--warn)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <Icon name="lock" size={26} />
+            </div>
+            <div style={{ fontFamily: "var(--display)", fontSize: 22, color: "var(--accent)", letterSpacing: 1, marginBottom: 8 }}>
+              MÓDULO CAIXA NÃO HABILITADO
+            </div>
+            <p style={{ fontFamily: "var(--sans)", fontSize: 13, color: "var(--text-mid)", maxWidth: 460, margin: "0 auto 16px", lineHeight: 1.5 }}>
+              Todas as contas iniciam sem permissão de Frente de Caixa. Para liberar a configuração do módulo de caixa nesta empresa, solicite ao desenvolvedor a ativação no Painel Dev.
+            </p>
+          </div>
+        )
       )}
 
       {configSubTab === "estoque" && (

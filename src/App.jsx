@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Analytics } from "./Analytics.jsx";
 import { Configuracoes, ConfigSetores, ConfigProdutosCategorias } from "./Configuracoes.jsx";
+import { DevPanel } from "./DevPanel.jsx";
 import { auth, db, googleProvider } from "./firebase.js";
 import { getAuth, signInWithEmailAndPassword, signOut, signInWithPopup } from "firebase/auth";
 import {
@@ -601,6 +602,7 @@ function GoogleOnboardingScreen({ user, onComplete, onCancel }) {
         pais: pais,
         idioma: idioma,
         googleRegistered: true,
+        caixaAtivo: false,
         createdAt: new Date().toISOString()
       });
 
@@ -706,6 +708,7 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
             nomeEmpresa: email.split("@")[0].toUpperCase(),
             senha: pw,
             googleRegistered: false,
+            caixaAtivo: false,
             createdAt: new Date().toISOString()
           });
           // Inicializa setor Geral se nao existir
@@ -1835,6 +1838,22 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showModalMenu, setShowModalMenu] = useState(false);
 
+  // Sincronização em tempo real do cadastro do usuário (permissões, modo caixa, etc)
+  const [userDocData, setUserDocData] = useState(null);
+
+  useEffect(() => {
+    if (user?.email) {
+      const unsub = onSnapshot(doc(db, "users", user.email), (snap) => {
+        if (snap.exists()) {
+          setUserDocData(snap.data());
+        }
+      }, (err) => console.warn("Erro ao ouvir dados do usuário:", err));
+      return () => unsub();
+    }
+  }, [user]);
+
+  const isCaixaAtivo = userDocData?.caixaAtivo === true;
+
   // Modo de Entrada Padrão (sys / caixa / requisicao)
   const [appEntryMode, setAppEntryMode] = useState(() => localStorage.getItem("app_entry_mode") || "sys");
   const [showAdminAuthModal, setShowAdminAuthModal] = useState(false);
@@ -1861,7 +1880,7 @@ export default function App() {
   // Redirecionamento automático se o modo salvo for caixa ou requisição
   useEffect(() => {
     const mode = localStorage.getItem("app_entry_mode");
-    if (mode === "requisicao" || mode === "caixa") {
+    if (mode === "requisicao" || (mode === "caixa" && isCaixaAtivo)) {
       let savedId = null;
       try {
         const rawReq = localStorage.getItem("req_company_session_v2");
@@ -1883,7 +1902,7 @@ export default function App() {
         setBindModalMode(mode);
       }
     }
-  }, [user]);
+  }, [user, isCaixaAtivo]);
 
   useEffect(() => {
     if (setor && user?.email) {
@@ -1981,7 +2000,7 @@ function BaixarAppsView() {
     setPendingReqs(0);
     const mode = localStorage.getItem("app_entry_mode") || "sys";
     setAppEntryMode(mode);
-    if (mode === "caixa") {
+    if (mode === "caixa" && isCaixaAtivo) {
       setTab("config");
       setConfigSubTab("caixas");
     } else if (mode === "requisicao") {
@@ -2019,6 +2038,11 @@ function BaixarAppsView() {
         setBindModalMode("requisicao");
       }
     } else if (newMode === "caixa") {
+      if (!isCaixaAtivo) {
+        addToast("O Modo Caixa (POS) não está habilitado para esta conta. Ative pelo Painel Dev.", "warn");
+        return;
+      }
+
       let savedId = null;
       try {
         const raw = localStorage.getItem("caixa_company_session_v2") || localStorage.getItem("req_company_session_v2");
@@ -2099,24 +2123,41 @@ function BaixarAppsView() {
     { id: "saida",       icon: "arrowDown",     label: "Saída" },
     { id: "requisicoes", icon: "clipboardList", label: "Pedidos", badge: pendingReqs > 0 ? pendingReqs : null },
     { id: "inventario",  icon: "package",       label: "Estoque" },
-    { id: "caixas",      icon: "store",         label: "Monitoramento Caixas" },
+    ...(isCaixaAtivo ? [{ id: "caixas", icon: "store", label: "Monitoramento Caixas" }] : []),
     { id: "criar_pc",    icon: "plus",          label: "Criar P/C" },
     { id: "analytics",   icon: "barChart",      label: "Analytics" },
     { id: "setores",     icon: "layers",        label: "Gestor dos Setores" },
     { id: "log",         icon: "fileText",      label: "Log" },
     { id: "config",      icon: "settings",      label: "Configurações" },
     { id: "apps",        icon: "download",      label: "Apps Mobile" },
+    { id: "dev",         icon: "code",          label: "Painel Dev", badge: "DEV" },
   ];
 
-  if (modoLojaAtivo) {
+  if (isCaixaAtivo && modoLojaAtivo) {
     allNavItems.push({ id: "config_caixa", icon: "settings", label: "Config. POS (Caixa)" });
   }
 
   const navGroups = [
-    { group: "GERAL", items: [allNavItems[0]] },
-    { group: "MOVIMENTAÇÃO", items: [allNavItems[1], allNavItems[2], allNavItems[3]] },
-    { group: "CATÁLOGO & ESTOQUE", items: [allNavItems[4], allNavItems[5], allNavItems[6], allNavItems[7]] },
-    { group: "GESTÃO & SISTEMA", items: [allNavItems[8], allNavItems[9], allNavItems[10], allNavItems[11], ...(modoLojaAtivo ? [allNavItems[12]] : [])] },
+    { group: "GERAL", items: [allNavItems.find(i => i.id === "dashboard")].filter(Boolean) },
+    { group: "MOVIMENTAÇÃO", items: [
+      allNavItems.find(i => i.id === "entrada"),
+      allNavItems.find(i => i.id === "saida"),
+      allNavItems.find(i => i.id === "requisicoes"),
+    ].filter(Boolean) },
+    { group: "CATÁLOGO & ESTOQUE", items: [
+      allNavItems.find(i => i.id === "inventario"),
+      ...(isCaixaAtivo ? [allNavItems.find(i => i.id === "caixas")].filter(Boolean) : []),
+      allNavItems.find(i => i.id === "criar_pc"),
+      allNavItems.find(i => i.id === "analytics"),
+    ].filter(Boolean) },
+    { group: "GESTÃO & SISTEMA", items: [
+      allNavItems.find(i => i.id === "setores"),
+      allNavItems.find(i => i.id === "log"),
+      allNavItems.find(i => i.id === "config"),
+      allNavItems.find(i => i.id === "apps"),
+      ...(isCaixaAtivo && modoLojaAtivo ? [allNavItems.find(i => i.id === "config_caixa")].filter(Boolean) : []),
+    ].filter(Boolean) },
+    { group: "DESENVOLVEDOR", items: [allNavItems.find(i => i.id === "dev")].filter(Boolean) },
   ];
 
   // Itens estritamente principais da Barra Inferior (Mobile)
@@ -2124,7 +2165,7 @@ function BaixarAppsView() {
     { id: "dashboard",   icon: "home",          label: "Home" },
     { id: "entrada",     icon: "arrowUp",       label: "Entrada" },
     { id: "saida",       icon: "arrowDown",     label: "Saída" },
-    { id: "caixas",      icon: "store",         label: "Caixas" },
+    ...(isCaixaAtivo ? [{ id: "caixas", icon: "store", label: "Caixas" }] : []),
     { id: "requisicoes", icon: "clipboardList", label: "Pedidos", badge: pendingReqs > 0 ? pendingReqs : null },
     { id: "inventario",  icon: "package",       label: "Estoque" },
     { id: "analytics",   icon: "barChart",      label: "Analytics" },
@@ -2132,6 +2173,12 @@ function BaixarAppsView() {
   ];
 
   const handleNavClick = (itemId) => {
+    if (itemId === "dev") {
+      setTab("dev");
+      setShowModalMenu(false);
+      return;
+    }
+
     const isRestrictedMode = appEntryMode === "caixa" || appEntryMode === "requisicao";
     const isAllowedInRestricted = (appEntryMode === "caixa" && itemId === "caixas") || (appEntryMode === "requisicao" && itemId === "requisicoes");
 
@@ -2210,8 +2257,11 @@ function BaixarAppsView() {
           </div>
           <div className="header-right">
             <span className="header-email">{user.email}</span>
-            <button className="hbtn" onClick={handleRefreshApp} title="Atualizar Versão do App" style={{ padding: "7px 10px", borderRadius: "8px", color: "var(--accent)" }}>
-              <Icon name="refreshCw" size={14} /> ATUALIZAR
+            <button className="hbtn" onClick={toggleTheme} title={theme === "light" ? "Modo Escuro" : "Modo Claro"} style={{ padding: "8px", borderRadius: "8px" }}>
+              <Icon name={theme === "light" ? "moon" : "sun"} size={15} />
+            </button>
+            <button className="hbtn" onClick={handleRefreshApp} title="Atualizar Versão do App" style={{ padding: "8px 10px", borderRadius: "8px", color: "var(--accent)" }}>
+              <Icon name="refreshCw" size={15} />
             </button>
             <button className="hbtn danger" onClick={logout} title="Sair da Conta" style={{ padding: "8px", borderRadius: "8px" }}><Icon name="logout" size={16} /></button>
           </div>
@@ -2253,14 +2303,16 @@ function BaixarAppsView() {
                   >
                     <Icon name="settings" size={12} /> Sys (Admin)
                   </button>
-                  <button
-                    type="button"
-                    className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
-                    style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
-                    onClick={() => handleSetAppEntryMode("caixa")}
-                  >
-                    <Icon name="store" size={12} /> Caixa
-                  </button>
+                  {isCaixaAtivo && (
+                    <button
+                      type="button"
+                      className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
+                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                      onClick={() => handleSetAppEntryMode("caixa")}
+                    >
+                      <Icon name="store" size={12} /> Caixa
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={`ftab ${appEntryMode === "requisicao" ? "active" : ""}`}
@@ -2339,8 +2391,11 @@ function BaixarAppsView() {
             <span style={{ fontFamily: "var(--display)", fontSize: 20, letterSpacing: 2 }}>SYS</span> <span className="setor-tag" style={{ borderColor: s.color, color: s.color, marginLeft: 6 }}>{s.label}</span>
           </div>
           <div className="header-right">
-            <button className="hbtn" onClick={handleRefreshApp} title="Atualizar Versão do App" style={{ padding: "7px 10px", borderRadius: "8px", color: "var(--accent)" }}>
-              <Icon name="refreshCw" size={14} /> ATUALIZAR
+            <button className="hbtn" onClick={toggleTheme} title={theme === "light" ? "Modo Escuro" : "Modo Claro"} style={{ padding: "8px", borderRadius: "8px" }}>
+              <Icon name={theme === "light" ? "moon" : "sun"} size={15} />
+            </button>
+            <button className="hbtn" onClick={handleRefreshApp} title="Atualizar Versão do App" style={{ padding: "8px 10px", borderRadius: "8px", color: "var(--accent)" }}>
+              <Icon name="refreshCw" size={15} />
             </button>
             <button className="hbtn danger" onClick={back} title="Sair do Setor" style={{ padding: "8px", borderRadius: "8px" }}><Icon name="logout" size={16} /></button>
           </div>
@@ -2409,6 +2464,7 @@ function BaixarAppsView() {
                 )}
                 {tab === "log"        && <LogCompleto setor={setor} addToast={addToast} />}
                 {tab === "apps"       && <BaixarAppsView />}
+                {tab === "dev"        && <DevPanel user={user} addToast={addToast} />}
                 {tab === "config"     && (
                   <Configuracoes
                     setor={setor}
@@ -2423,6 +2479,7 @@ function BaixarAppsView() {
                     initialSubTab={configSubTab}
                     showBottomNav={showBottomNav}
                     onToggleBottomNav={toggleBottomNav}
+                    caixaAtivo={isCaixaAtivo}
                   />
                 )}
               </>}
@@ -2476,14 +2533,16 @@ function BaixarAppsView() {
                     >
                       <Icon name="settings" size={12} /> Sys (Admin)
                     </button>
-                    <button
-                      type="button"
-                      className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
-                      style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
-                      onClick={() => handleSetAppEntryMode("caixa")}
-                    >
-                      <Icon name="store" size={12} /> Caixa
-                    </button>
+                    {isCaixaAtivo && (
+                      <button
+                        type="button"
+                        className={`ftab ${appEntryMode === "caixa" ? "active" : ""}`}
+                        style={{ flex: 1, fontSize: 10, justifyContent: "center", padding: "7px 4px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                        onClick={() => handleSetAppEntryMode("caixa")}
+                      >
+                        <Icon name="store" size={12} /> Caixa
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={`ftab ${appEntryMode === "requisicao" ? "active" : ""}`}

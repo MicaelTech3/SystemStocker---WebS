@@ -1270,6 +1270,41 @@ export default function Caixa() {
     f.nome.toLowerCase().includes(fiadorSearch.toLowerCase())
   );
 
+  // Verificação de permissão do desenvolvedor para o Modo Caixa
+  if (empresaDoc && empresaDoc.caixaAtivo !== true) {
+    return (
+      <>
+        <style>{css}</style>
+        <div className={`caixa-app ${theme}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 20 }}>
+          <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ top: "-15%", left: "-15%" }} />
+          <video className="ambient-video" src="/Baixar/s.mp4" autoPlay loop muted playsInline style={{ bottom: "-15%", right: "-15%", animationDelay: "-11s", width: "550px", height: "550px" }} />
+          <div className="card-premium animate-scale-in" style={{ maxWidth: 460, width: "100%", textAlign: "center", padding: "36px 28px", zIndex: 10 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(245,158,11,0.12)", color: "var(--warn)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+              <Icon name="lock" size={32} />
+            </div>
+            <div style={{ fontFamily: "var(--display)", fontSize: 26, letterSpacing: 1.5, marginBottom: 8, color: "var(--accent)" }}>
+              MODO CAIXA NÃO LIBERADO
+            </div>
+            <p style={{ fontSize: 13, color: "var(--text-mid)", lineHeight: 1.6, marginBottom: 20 }}>
+              Por padrão do sistema, o módulo de <strong>Frente de Caixa (POS)</strong> não opera nesta conta até ser ativado pelo Desenvolvedor.
+              <br /><br />
+              Empresa: <strong>{empresaDoc.nomeEmpresa || empresaId}</strong>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="/" className="btn-premium" style={{ width: "100%", textDecoration: "none" }}>
+                <Icon name="home" size={16} /> Voltar para o Início
+              </a>
+              <a href={`/requisicao?empresa=${encodeURIComponent(empresaId)}`} className="caixa-badge" style={{ justifyContent: "center", padding: "10px", fontSize: 12, textDecoration: "none" }}>
+                <Icon name="clipboardList" size={14} /> Ir para Requisições
+              </a>
+            </div>
+          </div>
+          <Toast toasts={toasts} />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <style>{css}</style>

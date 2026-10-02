@@ -231,6 +231,12 @@ export const Icon = ({ name, size = 18, color = "currentColor", strokeWidth = 1.
         <polyline points="9 18 15 12 9 6" />
       </>
     ),
+    arrowLeft: (
+      <>
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </>
+    ),
     menu: (
       <>
         <line x1="3" y1="12" x2="21" y2="12" />
@@ -368,6 +374,64 @@ export const Icon = ({ name, size = 18, color = "currentColor", strokeWidth = 1.
         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
+      </>
+    ),
+    code: (
+      <>
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </>
+    ),
+    terminal: (
+      <>
+        <polyline points="4 17 10 11 4 5" />
+        <line x1="12" y1="19" x2="20" y2="19" />
+      </>
+    ),
+    toggleLeft: (
+      <>
+        <rect x="1" y="5" width="22" height="14" rx="7" ry="7" />
+        <circle cx="8" cy="12" r="3" />
+      </>
+    ),
+    toggleRight: (
+      <>
+        <rect x="1" y="5" width="22" height="14" rx="7" ry="7" />
+        <circle cx="16" cy="12" r="3" />
+      </>
+    ),
+    power: (
+      <>
+        <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+        <line x1="12" y1="2" x2="12" y2="12" />
+      </>
+    ),
+    sliders: (
+      <>
+        <line x1="4" y1="21" x2="4" y2="14" />
+        <line x1="4" y1="10" x2="4" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12" y2="3" />
+        <line x1="20" y1="21" x2="20" y2="16" />
+        <line x1="20" y1="12" x2="20" y2="3" />
+        <line x1="1" y1="14" x2="7" y2="14" />
+        <line x1="9" y1="8" x2="15" y2="8" />
+        <line x1="17" y1="16" x2="23" y2="16" />
+      </>
+    ),
+    userCheck: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="8.5" cy="7" r="4" />
+        <polyline points="17 11 19 13 23 9" />
+      </>
+    ),
+    userX: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="8.5" cy="7" r="4" />
+        <line x1="18" y1="8" x2="23" y2="13" />
+        <line x1="23" y1="8" x2="18" y2="13" />
       </>
     ),
   };
