@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Stock — Controle de Estoque Inteligente</title>
+  <meta name="description" content="Sistema de controle de estoque moderno com requisições digitais, gestão por setores, alertas automáticos e aplicativo mobile. Organize seu almoxarifado com System Stock." />
+  <meta property="og:title" content="System Stock — Controle de Estoque Inteligente" />
+  <meta property="og:description" content="Sistema completo de gestão de estoque com requisições digitais, operadores com ID único e controle por setores." />
+  <link rel="icon" href="../logo sem fundo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #f97316;
+      --accent2: #ea580c;
+      --accent-glow: rgba(249, 115, 22, 0.35);
+      --bg: #060a12;
+      --bg2: #0b0f1a;
+      --surface: #0f1521;
+      --surface2: #141926;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(249,115,22,0.2);
+      --text: #f0f6fc;
+      --text-mid: #c9d1d9;
+      --text-dim: #6e7681;
+      --sans: 'Inter', system-ui, sans-serif;
+      --display: 'Space Grotesk', sans-serif;
+      --mono: 'Space Mono', monospace;
+      --success: #10b981;
+      --info: #3b82f6;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── SCROLLBAR ──────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+    /* ─── CANVAS / PARTICLES ──────────────── */
+    #particles-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ─── NAV ────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(6, 10, 18, 0.7);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+
+    nav.scrolled {
+      padding: 12px 40px;
+      background: rgba(6, 10, 18, 0.95);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .nav-logo-wrap {
+      width: 38px;
+      height: 38px;
+      position: relative;
+    }
+
+    .nav-logo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 12px var(--accent-glow));
+      animation: logo-float 4s ease-in-out infinite;
+    }
+
+    @keyframes logo-float {
+      0%, 100% { transform: translateY(0px); filter: drop-shadow(0 0 12px var(--accent-glow)); }
+      50% { transform: translateY(-4px); filter: drop-shadow(0 0 22px rgba(249,115,22,0.6)); }
+    }
+
+    .nav-brand-text {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 1px;
+    }
+
+    .nav-brand-text span { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--accent); }
+
+    .nav-cta {
+      background: var(--accent);
+      color: #fff !important;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-weight: 700 !important;
+      font-size: 13px !important;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transition: all 0.2s !important;
+    }
+
+    .nav-cta:hover {
+      background: var(--accent2) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(249,115,22,0.5) !important;
+    }
+
+    /* ─── HERO ───────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 40px 80px;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    /* Radial glow behind hero */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 900px;
+      height: 900px;
+      background: radial-gradient(ellipse at center, rgba(249,115,22,0.12) 0%, transparent 65%);
+      pointer-events: none;
+      animation: glow-pulse 5s ease-in-out infinite;
+    }
+
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* Grid lines */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(249,115,22,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(249,115,22,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.8) 0%, transparent 70%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 900px;
+    }
+
+    /* Logo animado hero */
+    .hero-logo-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 36px;
+    }
+
+    .hero-logo-ring {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-logo-ring::before,
+    .hero-logo-ring::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      border: 1.5px solid rgba(249,115,22,0.3);
+      animation: ring-spin 8s linear infinite;
+    }
+
+    .hero-logo-ring::before {
+      width: 160px;
+      height: 160px;
+      border-top-color: var(--accent);
+      border-right-color: transparent;
+      border-bottom-color: transparent;
+    }
+
+    .hero-logo-ring::after {
+      width: 200px;
+      height: 200px;
+      border-bottom-color: rgba(249,115,22,0.5);
+      border-left-color: transparent;
+      border-top-color: transparent;
+      animation-direction: reverse;
+      animation-duration: 12s;
+    }
+
+    @keyframes ring-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .hero-logo-inner {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%);
+      border-radius: 28px;
+    }
+
+    .hero-logo-inner img {
+      width: 90px;
+      height: 90px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 28px rgba(249,115,22,0.7));
+      animation: logo-breathe 3s ease-in-out infinite;
+    }
+
+    @keyframes logo-breathe {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 28px rgba(249,115,22,0.7)); }
+      50% { transform: scale(1.06); filter: drop-shadow(0 0 44px rgba(249,115,22,0.9)); }
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(249,115,22,0.1);
+      border: 1px solid rgba(249,115,22,0.3);
+      color: var(--accent);
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-family: var(--mono);
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      margin-bottom: 24px;
+      animation: badge-glow 3s ease-in-out infinite;
+    }
+
+    @keyframes badge-glow {
+      0%, 100% { box-shadow: 0 0 0 0 transparent; }
+      50% { box-shadow: 0 0 20px rgba(249,115,22,0.25); }
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: dot-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    h1 {
+      font-family: var(--display);
+      font-size: clamp(36px, 6vw, 72px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    h1 .accent { color: var(--accent); }
+
+    h1 .gradient-text {
+      background: linear-gradient(135deg, #f97316 0%, #fbbf24 50%, #f97316 100%);
+      background-size: 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient-shift 4s ease infinite;
+    }
+
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0%; }
+      50% { background-position: 100%; }
+    }
+
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 20px);
+      color: var(--text-mid);
+      max-width: 620px;
+      margin: 0 auto 44px;
+      line-height: 1.65;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent);
+      color: #fff;
+      padding: 16px 32px;
+      border-radius: 14px;
+      font-family: var(--display);
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 6px 30px var(--accent-glow);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -60%;
+      width: 60%;
+      height: 200%;
+      background: rgba(255,255,255,0.15);
+      transform: skewX(-20deg);
+      transition: left 0.5s;
+    }
+
+    .btn-primary:hover::before { left: 120%; }
+
+    .btn-primary:hover {
+      background: var(--accent2);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(249,115,22,0.6);
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--text);
+      padding: 16px 28px;
+      border-radius: 14px;
+      border: 1.5px solid var(--border2);
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.25s;
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(249,115,22,0.06);
+      transform: translateY(-2px);
+    }
+
+    /* ─── STATS STRIP ────────────────────── */
+    .stats-strip {
+      position: relative;
+      z-index: 1;
+      padding: 0 40px;
+      margin-bottom: 100px;
+    }
+
+    .stats-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2px;
+      background: var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .stat-item {
+      background: var(--surface);
+      padding: 32px 24px;
+      text-align: center;
+      transition: background 0.3s;
+    }
+
+    .stat-item:hover { background: var(--surface2); }
+
+    .stat-num {
+      font-family: var(--display);
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* ─── SECTION COMMONS ──────────────────── */
+    section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 40px;
+    }
+
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    .section-sub {
+      font-size: 17px;
+      color: var(--text-mid);
+      max-width: 580px;
+      line-height: 1.6;
+    }
+
+    /* ─── FEATURES ────────────────────────── */
+    .features {
+      padding: 100px 0;
+    }
+
+    .features-header {
+      text-align: center;
+      margin-bottom: 70px;
+    }
+
+    .features-header .section-sub {
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      transform: scaleX(0);
+      transition: transform 0.4s;
+    }
+
+    .feature-card:hover::before { transform: scaleX(1); }
+
+    .feature-card:hover {
+      border-color: rgba(249,115,22,0.25);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(249,115,22,0.1);
+    }
+
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 20px;
+      transition: transform 0.3s;
+    }
+
+    .feature-card:hover .feature-icon { transform: scale(1.15) rotate(-5deg); }
+
+    .feature-title {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.65;
+    }
+
+    /* ─── MOCKUP SECTION ───────────────────── */
+    .mockup-section {
+      padding: 100px 0;
+    }
+
+    .mockup-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .mockup-text { }
+
+    .mockup-list {
+      margin-top: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .mockup-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      transition: all 0.25s;
+      cursor: default;
+    }
+
+    .mockup-item:hover {
+      border-color: var(--border2);
+      background: var(--surface2);
+    }
+
+    .mockup-item-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .mockup-item-title {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .mockup-item-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .mockup-img-wrap {
+      position: relative;
+    }
+
+    .mockup-img-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(249,115,22,0.2) 0%, transparent 65%);
+      animation: glow-pulse 4s ease-in-out infinite;
+    }
+
+    .mockup-img-wrap img {
+      width: 100%;
+      border-radius: 20px;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+      animation: mockup-float 6s ease-in-out infinite;
+    }
+
+    @keyframes mockup-float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+    }
+
+    /* ─── HOW IT WORKS ─────────────────────── */
+    .how-section {
+      padding: 100px 0;
+    }
+
+    .how-header {
+      text-align: center;
+      margin-bottom: 70px;
+    }
+
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0;
+      position: relative;
+    }
+
+    .how-grid::before {
+      content: '';
+      position: absolute;
+      top: 40px;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--accent), transparent);
+      opacity: 0.3;
+    }
+
+    .how-step {
+      text-align: center;
+      padding: 0 20px;
+      position: relative;
+    }
+
+    .how-step-num {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--display);
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--accent);
+      margin: 0 auto 20px;
+      position: relative;
+      z-index: 1;
+      transition: all 0.3s;
+    }
+
+    .how-step:hover .how-step-num {
+      border-color: var(--accent);
+      background: rgba(249,115,22,0.1);
+      box-shadow: 0 0 30px rgba(249,115,22,0.3);
+      transform: scale(1.1);
+    }
+
+    .how-step-title {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .how-step-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ─── CTA FINAL ────────────────────────── */
+    .cta-section {
+      padding: 120px 40px;
+    }
+
+    .cta-box {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 70px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: 20%; right: 20%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .cta-box-glow {
+      position: absolute;
+      top: -100px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 300px;
+      background: radial-gradient(ellipse at center, rgba(249,115,22,0.15) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .cta-title {
+      font-family: var(--display);
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .cta-sub {
+      font-size: 17px;
+      color: var(--text-mid);
+      margin-bottom: 44px;
+      position: relative;
+    }
+
+    .cta-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: relative;
+    }
+
+    /* ─── FOOTER ──────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .footer-brand img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 6px var(--accent-glow));
+    }
+
+    .footer-brand-name {
+      font-family: var(--display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 28px;
+    }
+
+    .footer-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--accent); }
+
+    .footer-copy {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ─── REVEAL ANIMATIONS ─────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+
+    /* ─── TYPING CURSOR ─────────────────────── */
+    .typing-wrap {
+      display: inline-block;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 3px;
+      height: 0.85em;
+      background: var(--accent);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 1s step-end infinite;
+      border-radius: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ─── COUNTER ANIMATION ─────────────────── */
+    .stat-num[data-count] { }
+
+    /* ─── SCROLL INDICATOR ──────────────────── */
+    .scroll-indicator {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      animation: fade-in-up 2s ease 1.5s both;
+    }
+
+    @keyframes fade-in-up {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .scroll-mouse {
+      width: 22px;
+      height: 34px;
+      border: 2px solid var(--border2);
+      border-radius: 11px;
+      display: flex;
+      justify-content: center;
+      padding-top: 6px;
+    }
+
+    .scroll-wheel {
+      width: 3px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: scroll-wheel 2s ease-in-out infinite;
+    }
+
+    @keyframes scroll-wheel {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(12px); opacity: 0; }
+    }
+
+    .scroll-text {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      letter-spacing: 1px;
+    }
+
+    /* ─── MOBILE ─────────────────────────────── */
+    @media (max-width: 900px) {
+      nav { padding: 14px 20px; }
+      nav.scrolled { padding: 10px 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 100px 20px 60px; }
+      .stats-strip { padding: 0 20px; }
+      .section-wrap { padding: 0 20px; }
+      .mockup-inner { grid-template-columns: 1fr; gap: 50px; }
+      .how-grid::before { display: none; }
+      .cta-section { padding: 60px 20px; }
+      .cta-box { padding: 50px 28px; }
+      footer { padding: 30px 20px; flex-direction: column; align-items: flex-start; }
+    }
+
+    /* ─── FLOATING ORBS ─────────────────────── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(80px);
+      z-index: 0;
+      opacity: 0.15;
+    }
+
+    .orb-1 {
+      width: 500px;
+      height: 500px;
+      background: rgba(249,115,22,0.5);
+      top: -100px;
+      right: -100px;
+      animation: orb-move-1 18s ease-in-out infinite;
+    }
+
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      background: rgba(59,130,246,0.4);
+      bottom: 200px;
+      left: -100px;
+      animation: orb-move-2 22s ease-in-out infinite;
+    }
+
+    .orb-3 {
+      width: 300px;
+      height: 300px;
+      background: rgba(249,115,22,0.3);
+      bottom: -50px;
+      right: 20%;
+      animation: orb-move-3 15s ease-in-out infinite;
+    }
+
+    @keyframes orb-move-1 {
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(-60px, 80px); }
+      66% { transform: translate(40px, -40px); }
+    }
+
+    @keyframes orb-move-2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(80px, -60px); }
+    }
+
+    @keyframes orb-move-3 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-40px, -80px); }
+    }
+
+    /* ─── HERO HERO ANIMATION ──────────────── */
+    .hero-content > * {
+      animation: hero-item-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .hero-logo-wrap { animation-delay: 0.1s; }
+    .hero-badge { animation-delay: 0.3s; }
+    .hero-content h1 { animation-delay: 0.45s; }
+    .hero-sub { animation-delay: 0.6s; }
+    .hero-actions { animation-delay: 0.75s; }
+
+    @keyframes hero-item-in {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── NOISE OVERLAY ─────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.03;
+    }
+
+    /* ─── BADGE FEATURES ─────────────────────── */
+    .feat-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- Particles canvas -->
+  <canvas id="particles-canvas"></canvas>
+
+  <!-- ─── NAV ─── -->
+  <nav id="navbar">
+    <a href="#" class="nav-brand">
+      <div class="nav-logo-wrap">
+        <img src="../logo sem fundo.png" alt="System Stock Logo" />
+      </div>
+      <span class="nav-brand-text">SYSTEM<span>STOCK</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#recursos">Recursos</a></li>
+      <li><a href="#como-funciona">Como Funciona</a></li>
+      <li><a href="#wiki">Wiki</a></li>
+      <li><a href="../index.html" class="nav-cta">Acessar Sistema →</a></li>
+    </ul>
+  </nav>
+
+  <!-- ─── HERO ─── -->
+  <section class="hero" id="hero">
+    <div class="hero-grid"></div>
+
+    <div class="hero-content">
+      <div class="hero-logo-wrap">
+        <div class="hero-logo-ring">
+          <div class="hero-logo-inner">
+            <img src="../logo sem fundo.png" alt="System Stock" />
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-badge">
+        <div class="badge-dot"></div>
+        CONTROLE DE ESTOQUE INTELIGENTE
+      </div>
+
+      <h1>
+        Gerencie seu<br/>
+        <span class="gradient-text">Almoxarifado</span><br/>
+        sem complicação
+      </h1>
+
+      <p class="hero-sub">
+        Sistema completo com requisições digitais, controle por setores,
+        alertas automáticos de estoque e acesso mobile para sua equipe —
+        tudo em tempo real.
+      </p>
+
+      <div class="hero-actions">
+        <a href="../index.html" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Acessar o Sistema
+        </a>
+        <a href="#recursos" class="btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+          Ver como funciona
+        </a>
+      </div>
+    </div>
+
+    <div class="scroll-indicator">
+      <div class="scroll-mouse">
+        <div class="scroll-wheel"></div>
+      </div>
+      <span class="scroll-text">SCROLL</span>
+    </div>
+  </section>
+
+  <!-- ─── STATS ─── -->
+  <div class="stats-strip reveal">
+    <div class="stats-inner">
+      <div class="stat-item">
+        <div class="stat-num" data-count="100">0</div>
+        <div class="stat-label">% Baseado em Nuvem</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-count="360">0</div>
+        <div class="stat-label">Dias sem Interrupções</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-count="5">0</div>
+        <div class="stat-label">Min para Começar</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" data-count="0">0</div>
+        <div class="stat-label">Instalações Necessárias</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FEATURES ─── -->
+  <section class="features" id="recursos">
+    <div class="section-wrap">
+      <div class="features-header reveal">
+        <div class="section-tag">✦ Recursos Principais</div>
+        <h2 class="section-title">Tudo que seu estoque precisa</h2>
+        <p class="section-sub">Uma plataforma integrada que conecta seu almoxarifado, equipe de campo e gestores em um único fluxo digital.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon" style="background: rgba(249,115,22,0.1); color: #f97316;">📦</div>
+          <div class="feature-title">Controle de Estoque</div>
+          <p class="feature-desc">Cadastre produtos por categoria e setor. Registre entradas e saídas com observações e logs automáticos. Alertas visuais por nível de estoque.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon" style="background: rgba(59,130,246,0.1); color: #3b82f6;">📋</div>
+          <div class="feature-title">Requisições Digitais</div>
+          <p class="feature-desc">Funcionários fazem pedidos pelo celular com ID único. O almoxarifado aprova, recusa ou entrega com baixa automática no estoque.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="feature-icon" style="background: rgba(16,185,129,0.1); color: #10b981;">🏢</div>
+          <div class="feature-title">Gestão por Setores</div>
+          <p class="feature-desc">Organize o estoque por departamentos independentes: Almoxarifado, TI, Cozinha, Manutenção — cada um com PIN, operadores e catálogo próprio.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;">👤</div>
+          <div class="feature-title">ID Único de Operador</div>
+          <p class="feature-desc">Cada funcionário recebe um ID de 3 letras + 3 números gerado automaticamente. Login direto sem e-mail, sem burocracia.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">📊</div>
+          <div class="feature-title">Analytics & Logs</div>
+          <p class="feature-desc">Histórico completo de cada movimentação com data, hora e responsável. Relatórios analíticos para tomada de decisão.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="feature-icon" style="background: rgba(249,115,22,0.1); color: #f97316;">📱</div>
+          <div class="feature-title">Mobile Nativo</div>
+          <p class="feature-desc">Acesse pelo navegador em qualquer smartphone ou instale o APK. Funciona offline e sincroniza em tempo real quando conectado.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── MOCKUP SECTION ─── -->
+  <section class="mockup-section">
+    <div class="section-wrap">
+      <div class="mockup-inner">
+        <div class="mockup-text reveal">
+          <div class="section-tag">✦ Interface Moderna</div>
+          <h2 class="section-title">Simples para o operador. Poderoso para o gestor.</h2>
+          <p class="section-sub" style="margin-bottom: 0;">Design escuro premium com foco em usabilidade. Cada tela pensada para o fluxo real do dia a dia.</p>
+
+          <div class="mockup-list">
+            <div class="mockup-item reveal reveal-delay-1">
+              <span class="mockup-item-icon">⚡</span>
+              <div>
+                <div class="mockup-item-title">Gestão de Setores com PIN</div>
+                <div class="mockup-item-desc">Cada setor tem seu próprio PIN de segurança, operadores autorizados e catálogo de produtos independente.</div>
+              </div>
+            </div>
+            <div class="mockup-item reveal reveal-delay-2">
+              <span class="mockup-item-icon">🔗</span>
+              <div>
+                <div class="mockup-item-title">Link de Requisição via WhatsApp</div>
+                <div class="mockup-item-desc">Envie as credenciais do operador com 1 clique. Ele acessa na hora pelo link sem criar conta.</div>
+              </div>
+            </div>
+            <div class="mockup-item reveal reveal-delay-3">
+              <span class="mockup-item-icon">🔔</span>
+              <div>
+                <div class="mockup-item-title">Alertas Automáticos de Reposição</div>
+                <div class="mockup-item-desc">Itens com estoque crítico ganham destaque visual imediato. Configure os limites por produto.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mockup-img-wrap reveal reveal-delay-2">
+          <div class="mockup-img-glow"></div>
+          <img src="../Mockups do App SYS em Tema Escuro.png" alt="System Stock App Mockups" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── HOW IT WORKS ─── -->
+  <section class="how-section" id="como-funciona">
+    <div class="section-wrap">
+      <div class="how-header reveal">
+        <div class="section-tag">✦ Como Funciona</div>
+        <h2 class="section-title">Do cadastro à entrega em 4 passos</h2>
+        <p class="section-sub" style="margin: 0 auto;">Implante em minutos, sem treinamento técnico. Qualquer pessoa da equipe aprende em uma tarde.</p>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-step reveal reveal-delay-1">
+          <div class="how-step-num">1</div>
+          <div class="how-step-title">Cadastre seus Setores</div>
+          <p class="how-step-desc">Crie departamentos (Almoxarifado, TI, Cozinha...) com PIN e produtos do catálogo.</p>
+        </div>
+        <div class="how-step reveal reveal-delay-2">
+          <div class="how-step-num">2</div>
+          <div class="how-step-title">Adicione Operadores</div>
+          <p class="how-step-desc">Gere IDs únicos para cada funcionário e envie o link de acesso pelo WhatsApp.</p>
+        </div>
+        <div class="how-step reveal reveal-delay-3">
+          <div class="how-step-num">3</div>
+          <div class="how-step-title">Receba Requisições</div>
+          <p class="how-step-desc">Funcionários pedem pelo celular. Você aprova e o estoque é atualizado na hora.</p>
+        </div>
+        <div class="how-step reveal reveal-delay-4">
+          <div class="how-step-num">4</div>
+          <div class="how-step-title">Analise e Gerencie</div>
+          <p class="how-step-desc">Histórico completo, logs detalhados e alertas de reposição no painel principal.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── CTA FINAL ─── -->
+  <section class="cta-section" id="wiki">
+    <div class="cta-box reveal">
+      <div class="cta-box-glow"></div>
+      <div class="section-tag" style="justify-content: center;">✦ Comece Agora</div>
+      <h2 class="cta-title">Seu estoque organizado,<br/><span style="color: var(--accent);">hoje mesmo.</span></h2>
+      <p class="cta-sub">Acesse o sistema e comece em menos de 5 minutos.<br/>Ou leia a Wiki para aprender cada recurso no detalhe.</p>
+      <div class="cta-actions">
+        <a href="../index.html" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Entrar no Sistema
+        </a>
+        <a href="../wiki/" class="btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Ler a Wiki do Sistema
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ─── -->
+  <footer>
+    <a href="#" class="footer-brand">
+      <img src="../logo sem fundo.png" alt="Logo" />
+      <span class="footer-brand-name">SYSTEM STOCK</span>
+    </a>
+    <div class="footer-links">
+      <a href="../index.html">Sistema</a>
+      <a href="../wiki/">Wiki</a>
+      <a href="../requisicao">Requisições</a>
+    </div>
+    <div class="footer-copy">© 2025 System Stock. Todos os direitos reservados.</div>
+  </footer>
+
+  <script>
+    // ─── PARTICLES ───────────────────────────
+    const canvas = document.getElementById('particles-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let particles = [];
+    const PARTICLE_COUNT = 70;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 1.8 + 0.3;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+        this.opacity = Math.random() * 0.6 + 0.1;
+        this.hue = Math.random() > 0.7 ? 27 : Math.random() > 0.5 ? 210 : 27; // orange or blue
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+          this.reset();
+        }
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.fillStyle = `hsl(${this.hue}, 90%, 60%)`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push(new Particle());
+    }
+
+    // Draw connections
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.save();
+            ctx.globalAlpha = (1 - dist / 120) * 0.12;
+            ctx.strokeStyle = `rgba(249,115,22,1)`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      drawConnections();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    // ─── NAV SCROLL ──────────────────────────
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 40);
+    });
+
+    // ─── COUNTER ANIMATION ───────────────────
+    function animateCounter(el, target, suffix = '') {
+      const duration = 1800;
+      const start = performance.now();
+      function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+        const current = Math.floor(eased * target);
+        el.textContent = target === 0 ? '0' : current + suffix;
+        if (progress < 1) requestAnimationFrame(update);
+        else el.textContent = target + suffix;
+      }
+      requestAnimationFrame(update);
+    }
+
+    // ─── INTERSECTION OBSERVER ───────────────
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+
+          // Counter animation
+          const countEl = entry.target.querySelector('[data-count]');
+          if (countEl) {
+            const target = parseInt(countEl.dataset.count);
+            animateCounter(countEl, target, target === 100 ? '%' : target === 0 ? '' : '+');
+          }
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // Counter observers for stat items
+    const statObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const countEl = entry.target.querySelector('[data-count]');
+          if (countEl && !countEl.dataset.animated) {
+            countEl.dataset.animated = '1';
+            const target = parseInt(countEl.dataset.count);
+            let suffix = '';
+            if (target === 100) suffix = '%';
+            else if (target === 5) suffix = ' min';
+            animateCounter(countEl, target, suffix);
+          }
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('.stat-item').forEach(el => statObserver.observe(el));
+
+    // ─── SMOOTH ANCHOR SCROLL ────────────────
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href === '#') return;
+        e.preventDefault();
+        const target = document.querySelector(href);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // ─── MOUSE PARALLAX ON HERO LOGO ─────────
+    const heroLogoRing = document.querySelector('.hero-logo-ring');
+    document.addEventListener('mousemove', (e) => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const dx = (e.clientX - cx) / cx;
+      const dy = (e.clientY - cy) / cy;
+      if (heroLogoRing) {
+        heroLogoRing.style.transform = `translate(${dx * 10}px, ${dy * 10}px)`;
+      }
+    });
+
+    // ─── FEATURE CARD TILT ──────────────────
+    document.querySelectorAll('.feature-card').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width - 0.5) * 8;
+        const y = ((e.clientY - rect.top) / rect.height - 0.5) * 8;
+        card.style.transform = `translateY(-6px) rotateX(${-y}deg) rotateY(${x}deg)`;
+        card.style.transformStyle = 'preserve-3d';
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+    });
+  </script>
+</body>
+</html>
