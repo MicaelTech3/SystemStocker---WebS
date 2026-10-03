@@ -1,0 +1,69 @@
+# GUIA DE PRINTS — SYSTEM STOCK (CURSOS & TUTORIAIS)
+
+Esta pasta foi organizada para você colocar todas as capturas de tela (prints) do sistema.
+
+Quando você salvar uma imagem com o nome padrão em cada pasta (exemplo: `passo-1.png`), 
+ela será EXIBIDA AUTOMATICAMENTE na página `/cursos` do sistema!
+
+---
+
+## ESTRUTURA DAS PASTAS:
+
+1. `01-cadastrar-produto/`
+   - passo-1.png -> Tela do estoque com botão "+ NOVO PRODUTO"
+   - passo-2.png -> Modal de cadastro aberto
+   - passo-3.png -> Campos preenchidos (nome, categoria, quantidade, estoque mínimo)
+   - passo-4.png -> Produto salvo e visível na lista
+
+2. `02-dar-entrada/`
+   - passo-1.png -> Busca do produto no estoque
+   - passo-2.png -> Botão verde de entrada (+)
+   - passo-3.png -> Modal com quantidade que chegou e observação/NF
+   - passo-4.png -> Saldo atualizado com aviso de sucesso
+
+3. `03-dar-saida/`
+   - passo-1.png -> Produto selecionado na lista
+   - passo-2.png -> Botão vermelho de saída (−)
+   - passo-3.png -> Quantidade a retirar e motivo do consumo
+   - passo-4.png -> Estoque reduzido e notificação de baixa
+
+4. `04-editar-deletar-produto/`
+   - passo-1.png -> Ícone de lápis (Editar)
+   - passo-2.png -> Alteração e salvamento de dados
+   - passo-3.png -> Ícone de lixeira (Excluir)
+   - passo-4.png -> Confirmação de exclusão do item
+
+5. `05-criar-operador/`
+   - passo-1.png -> Menu Configurações > Setores
+   - passo-2.png -> Botão destacado "Operadores / Solicitantes"
+   - passo-3.png -> Nome do operador e ID Único gerado (3 letras + 3 números)
+   - passo-4.png -> Definição de senha e botão Criar Operador
+
+6. `06-enviar-link-acesso/`
+   - passo-1.png -> Lista de operadores cadastrados
+   - passo-2.png -> Clique no botão "Copiar Acesso"
+   - passo-3.png -> Mensagem pronta colada no WhatsApp do operador
+   - passo-4.png -> Operador na tela de login digitando o ID
+
+7. `07-fazer-requisicao/`
+   - passo-1.png -> Acesso ao link /requisicao
+   - passo-2.png -> Login com ID Único e Senha do operador
+   - passo-3.png -> Seleção de produtos e quantidades
+   - passo-4.png -> Escolha da prioridade (Baixa, Média, Alta) e botão Enviar
+   - passo-5.png -> Tela de sucesso com código REQ gerado
+
+8. `08-aprovar-requisicao/`
+   - passo-1.png -> Aba Requisições no painel principal
+   - passo-2.png -> Detalhes da requisição com tempo pendente
+   - passo-3.png -> Ações de Aprovar, Entregar ou Recusar
+
+9. `09-criar-setores/`
+   - passo-1.png -> Configurações > Novo Setor
+   - passo-2.png -> Seleção de nome, cor e ícone
+   - passo-3.png -> Definição de PIN master de 4 dígitos
+
+---
+
+DICA:
+- Formatos suportados: .png ou .jpg
+- Resolução recomendada: Tela inteira ou recorte focado da janela (1280x720 ou similar).

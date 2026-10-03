@@ -1,0 +1,6 @@
+PASTA: 01-cadastrar-produto
+Cole aqui os prints das etapas de cadastro de produtos:
+- passo-1.png: Tela da lista de estoque mostrando o botão '+ NOVO PRODUTO'
+- passo-2.png: Janela (modal) de cadastro aberta
+- passo-3.png: Formulário preenchido com nome, categoria, quantidade e estoque mínimo
+- passo-4.png: Produto cadastrado com sucesso e aparecendo na lista

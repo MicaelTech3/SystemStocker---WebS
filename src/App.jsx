@@ -810,6 +810,12 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
             ENTRAR COM GOOGLE
           </button>
           
+          <div style={{ marginTop: 18, textAlign: "center", borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+            <a href="/cursos" style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+              <Icon name="clipboardList" size={14} /> Tutoriais e Cursos do Sistema
+            </a>
+          </div>
+
           {err && <div className="err-msg" style={{ marginTop: 10 }}>{err}</div>}
         </form>
       </div>

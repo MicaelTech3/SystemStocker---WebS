@@ -1,0 +1,6 @@
+PASTA: 06-enviar-link-acesso
+Cole aqui os prints das etapas de envio do link e acesso:
+- passo-1.png: Operador selecionado na lista de operadores do setor
+- passo-2.png: Clique no botão 'Copiar Acesso' com o aviso de confirmação
+- passo-3.png: Mensagem formatada colada no WhatsApp do operador com link e dados
+- passo-4.png: Tela de login da Requisição aberta no celular do colaborador

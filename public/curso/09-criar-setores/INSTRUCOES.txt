@@ -1,0 +1,5 @@
+PASTA: 09-criar-setores
+Cole aqui os prints das etapas de criação e configuração de setores:
+- passo-1.png: Aba Configurações com o botão '+ NOVO SETOR'
+- passo-2.png: Modal de criação com seleção de Nome, Cor visual e Ícone
+- passo-3.png: Definição do PIN de acesso e botão Salvar

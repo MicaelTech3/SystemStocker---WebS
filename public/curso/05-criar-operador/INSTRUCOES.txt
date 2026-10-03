@@ -1,0 +1,7 @@
+PASTA: 05-criar-operador
+Cole aqui os prints das etapas de criação de operador com ID:
+- passo-1.png: Aba de Configurações mostrando os setores cadastrados
+- passo-2.png: Botão com borda 'Operadores / Solicitantes' no card do setor
+- passo-3.png: Nome do operador preenchido e ID Único gerado (3 letras + 3 números)
+- passo-4.png: Senha preenchida e clique em '+ CRIAR OPERADOR COM ID'
+- passo-5.png: Operador recém-criado aparecendo na lista abaixo com badges

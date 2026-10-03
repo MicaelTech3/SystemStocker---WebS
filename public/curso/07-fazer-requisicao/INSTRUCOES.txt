@@ -1,0 +1,7 @@
+PASTA: 07-fazer-requisicao
+Cole aqui os prints das etapas de fazer requisição (visão do operador):
+- passo-1.png: Tela de login em /requisicao
+- passo-2.png: Login preenchido com ID Único e Senha
+- passo-3.png: Catálogo de produtos com o seletor de quantidade aberto
+- passo-4.png: Pedido montado, seleção do nível de prioridade (Baixa, Média, Alta) e botão Enviar
+- passo-5.png: Tela de sucesso com código de acompanhamento REQ gerado
