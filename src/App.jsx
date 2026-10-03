@@ -320,7 +320,12 @@ const styles = `
   .req-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
   .req-codigo { font-family:var(--display); font-size:18px; letter-spacing:2px; color:var(--accent); }
   .req-meta { font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-bottom:4px; }
-  .req-items-preview { font-family:var(--mono); font-size:11px; color:var(--text-mid); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .req-items-preview { font-family:var(--mono); font-size:11px; color:var(--text-mid); white-space:normal; word-break:break-word; }
+  .badge-prio-baixo { background:rgba(59,130,246,.15); color:#3b82f6; border:1px solid #3b82f6; padding:2px 7px; border-radius:4px; font-family:var(--mono); font-size:10px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+  .badge-prio-medio { background:rgba(234,179,8,.15); color:#eab308; border:1px solid #eab308; padding:2px 7px; border-radius:4px; font-family:var(--mono); font-size:10px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+  .badge-prio-alto  { background:rgba(239,68,68,.15); color:#ef4444; border:1px solid #ef4444; padding:2px 7px; border-radius:4px; font-family:var(--mono); font-size:10px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+  .log-entry.clickable { cursor:pointer; transition:background .15s; }
+  .log-entry.clickable:hover { background:var(--surface2); }
 `;
 
 // ─── SCANNER ─────────────────────────────────────────────────
@@ -1385,9 +1390,160 @@ function Inventario({ setor, products, onDelete, addToast, thresh }) {
   );
 }
 
+// Modal de Detalhes do Log de Requisição
+function LogDetalheModal({ log, onClose, setor }) {
+  if (!log) return null;
+
+  const fmtDuration = (ms) => {
+    if (!ms || ms < 0) return "Pouco tempo (< 1 min)";
+    const sec = Math.floor(ms / 1000);
+    const min = Math.floor(sec / 60);
+    const hrs = Math.floor(min / 60);
+    const days = Math.floor(hrs / 24);
+
+    if (days > 0) {
+      const remHrs = hrs % 24;
+      return `${days} dia${days > 1 ? "s" : ""}${remHrs > 0 ? ` e ${remHrs}h` : ""}`;
+    }
+    if (hrs > 0) {
+      const remMin = min % 60;
+      return `${hrs} hora${hrs > 1 ? "s" : ""}${remMin > 0 ? ` e ${remMin} min` : ""}`;
+    }
+    if (min > 0) {
+      return `${min} minuto${min > 1 ? "s" : ""}`;
+    }
+    return "Menos de 1 min";
+  };
+
+  const prioMap = {
+    baixo: { label: "BAIXA", cls: "badge-prio-baixo" },
+    medio: { label: "MÉDIA", cls: "badge-prio-medio" },
+    alto:  { label: "ALTA",  cls: "badge-prio-alto" },
+  };
+
+  const prioInfo = prioMap[log.prioridade] || prioMap.medio;
+
+  let tempoEsperaText = "Não registrado";
+  if (log.tempoEsperaMs != null) {
+    tempoEsperaText = fmtDuration(log.tempoEsperaMs);
+  } else if (log.criadoEmTs && log.ts) {
+    const t1 = log.criadoEmTs?.seconds ? log.criadoEmTs.seconds * 1000 : new Date(log.criadoEmTs).getTime();
+    const t2 = log.ts?.seconds ? log.ts.seconds * 1000 : new Date(log.ts).getTime();
+    if (t2 > t1) {
+      tempoEsperaText = fmtDuration(t2 - t1);
+    }
+  }
+
+  return (
+    <div className="req-detail-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="req-detail-box animate-scale-in" style={{ maxWidth: 520, borderRadius: "var(--r)" }}>
+        <div className="req-detail-header">
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="req-detail-codigo">{log.reqCodigo ? `#${log.reqCodigo}` : "LOG REQUISIÇÃO"}</div>
+              <span className={prioInfo.cls}>{prioInfo.label}</span>
+            </div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)" }}>
+              {resolveSetor(setor)?.label} · Registrado em {fmtDate(log.ts)}
+            </div>
+          </div>
+          <button className="btn-icon-sm" onClick={onClose}><Icon name="x" size={14} /></button>
+        </div>
+
+        <div style={{ padding: "18px 20px" }}>
+          {/* Informações Solicitante & Tempo */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div style={{ background: "var(--surface2)", padding: 12, borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                Solicitante
+              </div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                {log.solicitante || "Não informado"}
+              </div>
+            </div>
+
+            <div style={{ background: "var(--surface2)", padding: 12, borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                Tempo Pendente / Resposta
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "var(--accent)" }}>
+                {tempoEsperaText}
+              </div>
+            </div>
+          </div>
+
+          {/* Status & Usuário */}
+          <div style={{ background: "var(--surface2)", padding: 12, borderRadius: "var(--r)", border: "1px solid var(--border)", marginBottom: 14 }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+              Histórico da Ação
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+              {log.descricao || (log.origem === "requisicao" ? "Saída Automática por Requisição Entregue" : "Alteração de Status")}
+            </div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--text-dim)" }}>
+              Admin responsável: <strong style={{ color: "var(--text)" }}>{log.usuario || "admin"}</strong>
+            </div>
+          </div>
+
+          {/* Itens */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+              Produtos / Itens ({Array.isArray(log.itens) ? log.itens.length : 1})
+            </div>
+            {Array.isArray(log.itens) && log.itens.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {log.itens.map((item, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface2)", border: "1px solid var(--border)", padding: "8px 12px", borderRadius: "var(--r)" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{item.nome}</div>
+                      {item.categoria && <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)" }}>{item.categoria}</div>}
+                    </div>
+                    <div style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 14, color: "var(--accent)" }}>
+                      {item.quantidade}x
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", padding: "10px 12px", borderRadius: "var(--r)", fontFamily: "var(--mono)", fontSize: 12 }}>
+                {log.produto ? `${log.quantidade || 1}x ${log.produto}` : "Nenhum item detalhado"}
+              </div>
+            )}
+          </div>
+
+          {/* Observações */}
+          {log.observacao && (
+            <div style={{ marginBottom: 10, background: "var(--surface2)", padding: 12, borderRadius: "var(--r)", border: "1px solid var(--border)" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                Observação do Solicitante
+              </div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{log.observacao}</div>
+            </div>
+          )}
+
+          {log.respostaAdmin && (
+            <div style={{ marginBottom: 14, background: "rgba(59,130,246,.08)", padding: 12, borderRadius: "var(--r)", border: "1px solid var(--info)" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--info)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                Resposta do Admin
+              </div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--text)" }}>{log.respostaAdmin}</div>
+            </div>
+          )}
+
+          <button className="btn btn-outline btn-full" onClick={onClose} style={{ marginTop: 4 }}>
+            FECHAR DETALHES
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── LOG ─────────────────────────────────────────────────────
 function LogCompleto({ setor, addToast }) {
   const [logs, setLogs] = useState([]), [loading, setLoading] = useState(true), [filtro, setFiltro] = useState("todos"), [search, setSearch] = useState("");
+  const [detalheLog, setDetalheLog] = useState(null);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -1396,16 +1552,20 @@ function LogCompleto({ setor, addToast }) {
     })();
   }, [setor]);
 
-  const byTipo = filtro === "todos" ? logs : filtro === "saida_req" ? logs.filter(l => l.tipo === "saida" && l.origem === "requisicao") : filtro === "saida_manual" ? logs.filter(l => l.tipo === "saida" && l.origem !== "requisicao") : logs.filter(l => l.tipo === filtro);
+  const byTipo = filtro === "todos" ? logs
+    : filtro === "saida_req" ? logs.filter(l => l.tipo === "saida" && l.origem === "requisicao")
+    : filtro === "saida_manual" ? logs.filter(l => l.tipo === "saida" && l.origem !== "requisicao")
+    : filtro === "requisicao" ? logs.filter(l => l.tipo === "requisicao")
+    : logs.filter(l => l.tipo === filtro);
   const q = search.toLowerCase();
-  const filtered = q ? byTipo.filter(l => (l.produto || "").toLowerCase().includes(q) || (l.categoria || "").toLowerCase().includes(q) || (l.descricao || "").toLowerCase().includes(q) || (l.usuario || "").toLowerCase().includes(q)) : byTipo;
+  const filtered = q ? byTipo.filter(l => (l.produto || "").toLowerCase().includes(q) || (l.categoria || "").toLowerCase().includes(q) || (l.descricao || "").toLowerCase().includes(q) || (l.usuario || "").toLowerCase().includes(q) || (l.solicitante || "").toLowerCase().includes(q) || (l.reqCodigo || "").toLowerCase().includes(q)) : byTipo;
 
   return (
     <div>
       <div className="page-hd"><div className="page-title">LOG</div><div className="page-sub">Histórico — {resolveSetor(setor).label}</div></div>
-      <SearchBox value={search} onChange={setSearch} placeholder="Buscar por produto, categoria, usuário..." />
+      <SearchBox value={search} onChange={setSearch} placeholder="Buscar por produto, solicitante, código..." />
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {[["todos", "Todos"], ["entrada", "Entrada"], ["saida", "Saída (todas)"], ["saida_req", "Saída Req."], ["saida_manual", "Saída Manual"], ["config", "Config"]].map(([f, label]) => (
+        {[["todos", "Todos"], ["entrada", "Entrada"], ["saida", "Saída (todas)"], ["saida_req", "Saída Req."], ["saida_manual", "Saída Manual"], ["requisicao", "Requisições"], ["config", "Config"]].map(([f, label]) => (
           <button key={f} className={`btn ${filtro === f ? "btn-accent" : "btn-outline"}`} onClick={() => setFiltro(f)} style={{ fontSize: 11, padding: "8px 12px", textTransform: "uppercase" }}>{label}</button>
         ))}
         <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)", alignSelf: "center", marginLeft: 4 }}>{filtered.length} reg.</span>
@@ -1416,9 +1576,17 @@ function LogCompleto({ setor, addToast }) {
           filtered.length === 0 ? <div className="empty">Nenhum registro encontrado.</div> :
             filtered.map(l => {
               const isReq = l.tipo === "saida" && l.origem === "requisicao";
+              const isReqStatus = l.tipo === "requisicao";
+              const hasReqDetail = isReq || isReqStatus || Boolean(l.reqCodigo);
+              const dotClass = l.tipo === "entrada" ? "in" : isReq ? "req" : isReqStatus ? "req" : l.tipo === "saida" ? "out" : "config";
               return (
-                <div key={l.id} className="log-entry">
-                  <div><div className={`log-dot ${l.tipo === "entrada" ? "in" : isReq ? "req" : l.tipo === "saida" ? "out" : "config"}`} /></div>
+                <div
+                  key={l.id}
+                  className={`log-entry ${hasReqDetail ? "clickable" : ""}`}
+                  onClick={() => hasReqDetail && setDetalheLog(l)}
+                  title={hasReqDetail ? "Clique para ver detalhes da requisição" : undefined}
+                >
+                  <div><div className={`log-dot ${dotClass}`} /></div>
                   <div>
                     <div className="log-action">
                       {l.tipo === "entrada" && <><span className="badge badge-in" style={{ marginRight: 6 }}>↑</span>{l.quantidade}x {l.produto} {l.barcode && l.barcode !== "—" && <span style={{ color: "var(--text-dim)", fontSize: 10 }}>· {l.barcode}</span>}</>}
@@ -1428,15 +1596,27 @@ function LogCompleto({ setor, addToast }) {
                         {l.reqCodigo && <span style={{ color: "var(--accent)", marginLeft: 6, fontSize: 10 }}>#{l.reqCodigo}</span>}
                       </>}
                       {l.tipo === "saida" && !isReq && <><span className="badge badge-out" style={{ marginRight: 6 }}>↓</span>{l.quantidade || 1}x {l.produto}</>}
+                      {isReqStatus && <>
+                        <span style={{ marginRight: 6, background: "rgba(249,115,22,.10)", border: "1px solid #f97316", color: "#f97316", padding: "2px 6px", fontSize: 9, borderRadius: 2, fontFamily: "var(--mono)", letterSpacing: 1 }}>REQ</span>
+                        {l.descricao}
+                        {l.reqCodigo && <span style={{ color: "var(--accent)", marginLeft: 6, fontSize: 10 }}>#{l.reqCodigo}</span>}
+                      </>}
                       {l.tipo === "config" && <><span className="badge" style={{ marginRight: 6, color: "var(--info)", borderColor: "var(--info)" }}>CFG</span>{l.descricao}</>}
                     </div>
-                    <div className="log-detail">{l.categoria && `${l.categoria} · `}{l.usuario}{isReq ? " · Saída por Requisição" : l.tipo === "saida" ? " · Saída Manual" : ""}</div>
+                    <div className="log-detail">
+                      {isReqStatus
+                        ? `${l.solicitante ? l.solicitante + " · " : ""}${l.usuario} · Mudança de status`
+                        : `${l.categoria ? l.categoria + " · " : ""}${l.usuario}${isReq ? " · Saída por Requisição" : l.tipo === "saida" ? " · Saída Manual" : ""}`
+                      }
+                      {hasReqDetail && <span style={{ color: "var(--accent)", marginLeft: 6, fontSize: 10 }}>🔍 Detalhes</span>}
+                    </div>
                   </div>
                   <div className="log-time">{fmtDate(l.ts)}</div>
                 </div>
               );
             })}
       </div>
+      {detalheLog && <LogDetalheModal log={detalheLog} onClose={() => setDetalheLog(null)} setor={setor} />}
     </div>
   );
 }
@@ -1470,6 +1650,13 @@ function ReqDetalhe({ req, onClose, onUpdate, addToast, user }) {
     setSaving(true);
     const wasEntregue = req.status === "entregue";
     const nowEntregue = status === "entregue";
+    const statusMudou = req.status !== status;
+
+    // Cálculo do tempo de espera/pendência em milissegundos
+    const criadoMs = req.criadoEm?.seconds
+      ? req.criadoEm.seconds * 1000
+      : (req.criadoEm?.toDate ? req.criadoEm.toDate().getTime() : (req.criadoEm ? new Date(req.criadoEm).getTime() : Date.now()));
+    const msEspera = Date.now() - criadoMs;
 
     try {
       // Atualiza o status da requisição — coleção PRIVADA do setor
@@ -1478,6 +1665,30 @@ function ReqDetalhe({ req, onClose, onUpdate, addToast, user }) {
         respostaAdmin: resposta.trim(),
         atualizadoEm: serverTimestamp(),
       });
+
+      // ── REGISTRO NO LOG ao mudar status ────────────────────
+      if (statusMudou && !nowEntregue) {
+        // Registra mudanças de status (aprovado, recusado, etc.) no log
+        const itensDesc = req.itens?.map(i => `${i.nome} (${i.quantidade}x)`).join(", ") || "";
+        await registrarLog(req.setor, "requisicao", {
+          descricao: `Requisição ${req.codigo}: ${req.status} → ${status}`,
+          produto: itensDesc,
+          quantidade: req.itens?.length || 0,
+          usuario: user?.email || "admin",
+          origem: "admin",
+          reqCodigo: req.codigo,
+          reqId: req.id,
+          solicitante: req.solicitante || "",
+          prioridade: req.prioridade || "medio",
+          statusAnterior: req.status,
+          statusNovo: status,
+          observacao: req.observacao || "",
+          respostaAdmin: resposta.trim(),
+          itens: req.itens || [],
+          tempoEsperaMs: msEspera,
+          criadoEmTs: req.criadoEm || null
+        });
+      }
 
       // ── SAÍDA AUTOMÁTICA ao marcar como "entregue" ────────
       if (nowEntregue && !wasEntregue && req.itens?.length > 0) {
@@ -1506,6 +1717,12 @@ function ReqDetalhe({ req, onClose, onUpdate, addToast, user }) {
                 reqCodigo: req.codigo,
                 reqId: req.id,
                 solicitante: req.solicitante || "",
+                prioridade: req.prioridade || "medio",
+                observacao: req.observacao || "",
+                respostaAdmin: resposta.trim(),
+                itens: req.itens || [],
+                tempoEsperaMs: msEspera,
+                criadoEmTs: req.criadoEm || null
               });
             } else {
               erros.push(`"${item.nome}" não encontrado no estoque`);
@@ -1537,7 +1754,14 @@ function ReqDetalhe({ req, onClose, onUpdate, addToast, user }) {
       <div className="req-detail-box">
         <div className="req-detail-header">
           <div>
-            <div className="req-detail-codigo">{req.codigo}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="req-detail-codigo">{req.codigo}</div>
+              {req.prioridade && (
+                <span className={`badge-prio-${req.prioridade}`}>
+                  {req.prioridade === "alto" ? "ALTA" : req.prioridade === "baixo" ? "BAIXA" : "MÉDIA"}
+                </span>
+              )}
+            </div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)" }}>
               {s?.label} · {fmtDate(req.criadoEm)}
             </div>
@@ -1682,7 +1906,7 @@ function GestaoRequisicoes({ setor, user, addToast }) {
         <div className="page-title">REQUISIÇÕES</div>
         <div className="page-sub">Pedidos recebidos — {s.label}</div>
       </div>
-      <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 16 }}>
+      <div className="stats-grid" style={{ marginBottom: 16 }}>
         <div className="stat-card" style={{ "--c": "var(--warn)" }}><div className="stat-label">Pendentes</div><div className="stat-value" style={{ color: "var(--warn)" }}>{counts.pendente}</div><div className="stat-sub">aguardando</div></div>
         <div className="stat-card" style={{ "--c": "var(--success)" }}><div className="stat-label">Aprovados</div><div className="stat-value" style={{ color: "var(--success)" }}>{counts.aprovado}</div><div className="stat-sub">pedidos</div></div>
         <div className="stat-card" style={{ "--c": "var(--info)" }}><div className="stat-label">Entregues</div><div className="stat-value" style={{ color: "var(--info)" }}>{counts.entregue}</div><div className="stat-sub">concluídos</div></div>
@@ -1706,11 +1930,14 @@ function GestaoRequisicoes({ setor, user, addToast }) {
           : filtered.length === 0 ? <div className="empty">Nenhuma requisição encontrada.</div>
             : filtered.map(r => {
               const st = STATUS_REQ[r.status] || STATUS_REQ.pendente;
+              const prioCls = r.prioridade ? `badge-prio-${r.prioridade}` : "badge-prio-medio";
+              const prioLbl = r.prioridade === "alto" ? "ALTA" : r.prioridade === "baixo" ? "BAIXA" : "MÉDIA";
               return (
                 <div key={r.id} className="req-card" onClick={() => setDetalhe(r)}>
                   <div className="req-card-top">
                     <div className="req-codigo">{r.codigo}</div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <span className={prioCls}>{prioLbl}</span>
                       <span className={`badge ${st.badge}`}>{st.label}</span>
                     </div>
                   </div>

@@ -1,13 +1,14 @@
 /**
  * firebase.js — Instância centralizada do Firebase
- * Todas as credenciais vêm do arquivo .env (variáveis VITE_*)
+ * Configurado com cache local offline moderno (FirestoreSettings.cache)
  */
 
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import {
-  getFirestore,
-  enableIndexedDbPersistence
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
@@ -25,20 +26,15 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db   = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
 
-// Habilita cache local offline (IndexedDB) para respostas instantâneas
-// enquanto a sincronização com o servidor acontece em background
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === "failed-precondition") {
-    // Múltiplas abas abertas — persistence só funciona em uma por vez
-    console.warn("Firebase persistence desativada: múltiplas abas abertas.");
-  } else if (err.code === "unimplemented") {
-    // Navegador não suporta
-    console.warn("Firebase persistence não suportada neste navegador.");
-  }
+// Inicializa Firestore com cache local moderno e suporte a múltiplas abas
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
 });
+
+export const googleProvider = new GoogleAuthProvider();
 
 // Analytics (opcional — não bloqueia nada)
 try {

@@ -502,6 +502,15 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
 
   useEffect(() => { loadSectors(); }, [user]);
 
+  useEffect(() => {
+    if (!selectedSectorUsers) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setSelectedSectorUsers(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedSectorUsers]);
+
   const loadSectorUsers = async (secId) => {
     if (!user?.email || !secId) return;
     try {
@@ -879,11 +888,34 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                   </div>
 
                   <button
+                    type="button"
                     className="btn btn-outline"
-                    style={{ fontSize: 11, padding: "4px 10px", borderRadius: "10px", height: "auto" }}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "5px 12px",
+                      borderRadius: "8px",
+                      border: "1.5px solid var(--accent)",
+                      background: "rgba(249, 115, 22, 0.08)",
+                      color: "var(--accent)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      cursor: "pointer",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "var(--accent)";
+                      e.currentTarget.style.color = "#fff";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "rgba(249, 115, 22, 0.08)";
+                      e.currentTarget.style.color = "var(--accent)";
+                    }}
                     onClick={() => openUsersModal(s)}
                   >
-                    <Icon name="users" size={12} /> Operadores / Solicitantes
+                    <Icon name="users" size={13} /> Operadores / Solicitantes
                   </button>
                 </div>
               </div>
@@ -933,7 +965,34 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
               <h3 style={{ fontFamily: "var(--display)", fontSize: 24, letterSpacing: 1, color: "var(--accent)", margin: 0 }}>
                 {editSector ? `EDITAR SETOR — ${editSector.label}` : "NOVO SETOR"}
               </h3>
-              <button className="btn-ghost" onClick={() => setShowModal(false)}><Icon name="x" size={16} /></button>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: "8px",
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border2)",
+                  color: "var(--text-dim)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = "var(--danger, #ef4444)";
+                  e.currentTarget.style.borderColor = "var(--danger, #ef4444)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = "var(--text-dim)";
+                  e.currentTarget.style.borderColor = "var(--border2)";
+                }}
+                title="Fechar"
+              >
+                <Icon name="x" size={16} />
+              </button>
             </div>
             <form onSubmit={handleCreateOrUpdate} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {!editSector && (
@@ -1037,12 +1096,12 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
             }}
           >
             {/* Header do Modal */}
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface)", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 38, height: 38, borderRadius: "10px", background: `${selectedSectorUsers.color || "var(--accent)"}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, background: "var(--surface)", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
+                <div style={{ width: 38, height: 38, borderRadius: "10px", background: `${selectedSectorUsers.color || "var(--accent)"}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
                   <Icon name={selectedSectorUsers.iconName || "package"} size={20} color={selectedSectorUsers.color || "var(--accent)"} />
                 </div>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <h3 style={{ fontFamily: "var(--sans)", fontSize: 16, fontWeight: 700, color: "var(--text)", margin: 0 }}>
                       Operadores do Setor
@@ -1051,29 +1110,62 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                       {selectedSectorUsers.label}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, fontFamily: "var(--sans)", color: "var(--text-dim)", marginTop: 2 }}>
+                  <div style={{ fontSize: 11, fontFamily: "var(--sans)", color: "var(--text-dim)", marginTop: 4 }}>
                     Cadastre operadores com ID único (3 letras + 3 números) para login direto na Requisição
                   </div>
                 </div>
               </div>
-              <button className="btn-ghost" onClick={() => setSelectedSectorUsers(null)} style={{ padding: 6, flexShrink: 0 }} title="Fechar">
-                <Icon name="x" size={16} />
+              <button
+                type="button"
+                onClick={() => setSelectedSectorUsers(null)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "8px",
+                  background: "rgba(239, 68, 68, 0.12)",
+                  border: "1.5px solid rgba(239, 68, 68, 0.4)",
+                  color: "#ef4444",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  alignSelf: "flex-start",
+                  marginTop: -2,
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = "#ffffff";
+                  e.currentTarget.style.borderColor = "#ef4444";
+                  e.currentTarget.style.background = "#ef4444";
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = "#ef4444";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.4)";
+                  e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)";
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+                title="Fechar (Esc)"
+                aria-label="Fechar"
+              >
+                <Icon name="x" size={17} />
               </button>
             </div>
 
             {/* Conteúdo com Scroll */}
             <div style={{ padding: "18px 20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Formulário de Criação de Operador */}
-              <div style={{ background: "var(--surface2)", padding: 16, borderRadius: "12px", border: "1px solid var(--border2)", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ background: "var(--surface2)", padding: "16px 18px", borderRadius: "12px", border: "1px solid var(--border2)", display: "flex", flexDirection: "column", gap: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--accent)", display: "flex", alignItems: "center", gap: 6 }}>
-                    <Icon name="userPlus" size={14} /> NOVO OPERADOR / SOLICITANTE
+                  <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 700, color: "var(--accent)", display: "flex", alignItems: "center", gap: 7, letterSpacing: "0.3px" }}>
+                    <Icon name="userPlus" size={15} /> NOVO OPERADOR / SOLICITANTE
                   </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, fontFamily: "var(--sans)", color: "var(--text)", marginBottom: 5 }}>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, fontFamily: "var(--sans)", color: "var(--text)", marginBottom: 6 }}>
                       Nome do Operador *
                     </label>
                     <input
@@ -1081,28 +1173,43 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                       placeholder="Ex: Carlos Almoxarifado, Maria Recepção..."
                       value={newSectorUser}
                       onChange={e => setNewSectorUser(e.target.value)}
-                      style={{ fontSize: 13, padding: "9px 12px" }}
+                      style={{ fontSize: 13, padding: "10px 12px", width: "100%", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 12 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 600, fontFamily: "var(--sans)", color: "var(--text)", marginBottom: 5 }}>
-                        ID Único (3 letras + 3 números)
-                      </label>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, minHeight: 18 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--sans)", color: "var(--text)" }}>
+                          ID Único *
+                        </label>
+                        <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--sans)" }}>
+                          (3 letras + 3 números)
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
                         <input
                           className="form-input"
                           value={newSectorUserId}
                           onChange={e => setNewSectorUserId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
                           maxLength={6}
                           placeholder="ABC123"
-                          style={{ fontFamily: "var(--mono)", fontWeight: 700, letterSpacing: 2, color: "var(--accent)", fontSize: 14, padding: "8px 10px", textAlign: "center" }}
+                          style={{
+                            fontFamily: "var(--mono)",
+                            fontWeight: 700,
+                            letterSpacing: 2,
+                            color: "var(--accent)",
+                            fontSize: 14,
+                            padding: "9px 10px",
+                            textAlign: "center",
+                            flex: 1,
+                            minWidth: 0
+                          }}
                         />
                         <button
                           type="button"
                           className="btn btn-outline"
-                          style={{ padding: "8px 10px", flexShrink: 0 }}
+                          style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                           onClick={() => setNewSectorUserId(generateOperatorId())}
                           title="Gerar Outro ID (3 letras + 3 números)"
                         >
@@ -1112,22 +1219,31 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                     </div>
 
                     <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 600, fontFamily: "var(--sans)", color: "var(--text)", marginBottom: 5 }}>
-                        Senha de Acesso *
-                      </label>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, minHeight: 18 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--sans)", color: "var(--text)" }}>
+                          Senha de Acesso *
+                        </label>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
                         <input
                           className="form-input"
                           type={showNewUserPass ? "text" : "password"}
                           value={newSectorUserPass}
                           onChange={e => setNewSectorUserPass(e.target.value)}
                           placeholder="Senha"
-                          style={{ fontFamily: "var(--mono)", letterSpacing: showNewUserPass ? 1 : 3, fontSize: 14, padding: "8px 10px" }}
+                          style={{
+                            fontFamily: "var(--mono)",
+                            letterSpacing: showNewUserPass ? 1 : 3,
+                            fontSize: 14,
+                            padding: "9px 10px",
+                            flex: 1,
+                            minWidth: 0
+                          }}
                         />
                         <button
                           type="button"
                           className="btn btn-outline"
-                          style={{ padding: "8px 10px", flexShrink: 0 }}
+                          style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                           onClick={() => setShowNewUserPass(!showNewUserPass)}
                           title={showNewUserPass ? "Ocultar Senha" : "Ver Senha"}
                         >
@@ -1140,7 +1256,19 @@ export function ConfigSetores({ user, addToast, resolveSetor }) {
                   <button
                     type="button"
                     className="btn btn-accent"
-                    style={{ width: "100%", padding: "10px 16px", marginTop: 4, fontWeight: 700, fontSize: 12 }}
+                    style={{
+                      width: "100%",
+                      padding: "11px 16px",
+                      marginTop: 4,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
+                    }}
                     onClick={handleAddSectorUser}
                     disabled={savingUser || !newSectorUser.trim()}
                   >

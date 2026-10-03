@@ -231,13 +231,13 @@ const css = `
   .s-entregue { color:var(--info);    border-color:var(--info);    background:var(--info-light); }
   .empty { text-align:center; padding:36px 16px; font-family:var(--mono); font-size:12px; color:var(--text-dim); }
 
-  /* Toast */
-  .toast-wrap { position:fixed; bottom:20px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:6px; max-width:calc(100vw - 32px); }
-  .toast { padding:11px 16px; font-family:var(--mono); font-size:12px; border-left:3px solid; min-width:200px; animation:tin .25s ease; border-radius:0 var(--r) var(--r) 0; display:flex; align-items:center; gap:8px; }
-  .toast-success { background:var(--surface); border-color:var(--success); color:var(--success); box-shadow:0 4px 14px rgba(0,0,0,0.1); }
-  .toast-error   { background:var(--surface); border-color:var(--danger);  color:var(--danger);  box-shadow:0 4px 14px rgba(0,0,0,0.1); }
-  .toast-info    { background:var(--surface); border-color:var(--info);    color:var(--info);    box-shadow:0 4px 14px rgba(0,0,0,0.1); }
-  @keyframes tin { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+  /* Toast (Parte Superior) */
+  .toast-wrap { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:99999; display:flex; flex-direction:column; align-items:center; gap:8px; width:max-content; max-width:calc(100vw - 32px); pointer-events:none; }
+  .toast { padding:12px 18px; font-family:var(--mono); font-size:12px; font-weight:600; border-radius:10px; border:1px solid; border-left:4px solid; min-width:240px; animation:toastSlideDown .25s cubic-bezier(0.16, 1, 0.3, 1); display:flex; align-items:center; gap:10px; pointer-events:auto; box-shadow:0 10px 30px rgba(0,0,0,0.4); backdrop-filter:blur(8px); }
+  .toast-success { background:var(--surface); border-color:var(--success); color:var(--success); }
+  .toast-error   { background:var(--surface); border-color:var(--danger);  color:var(--danger); }
+  .toast-info    { background:var(--surface); border-color:var(--info);    color:var(--info); }
+  @keyframes toastSlideDown { from{transform:translateY(-30px);opacity:0} to{transform:translateY(0);opacity:1} }
 
   /* Usuários */
   .user-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
@@ -265,7 +265,7 @@ const genCodigo = () => "REQ-" + Date.now().toString(36).toUpperCase().slice(-5)
 function useToast() {
   const [toasts, setToasts] = useState([]);
   const add = (msg, type = "info") => {
-    const id = Date.now();
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setToasts(p => [...p, { id, msg, type }]);
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3500);
   };
@@ -756,6 +756,7 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
 function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeUserProp, onLogoutOperator }) {
   const [itens, setItens] = useState([]);
   const [obs, setObs] = useState("");
+  const [prioridade, setPrioridade] = useState("medio");
   const [solicitante, setSolicitante] = useState(activeUserProp?.nome || "");
   const [usuarios, setUsuarios] = useState([]);
   const [activeUser, setActiveUser] = useState(activeUserProp || null);
@@ -829,17 +830,18 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
   };
 
   const addItem = (item) => {
-    setItens(prev => {
-      const idx = prev.findIndex(i => i.nome.toLowerCase() === item.nome.toLowerCase());
-      if (idx !== -1) {
-        const upd = [...prev];
-        upd[idx] = { ...upd[idx], quantidade: upd[idx].quantidade + item.quantidade };
-        toast(`+${item.quantidade}x "${item.nome}"`, "info");
-        return upd;
-      }
+    const existing = itens.find(i => i.nome.toLowerCase() === item.nome.toLowerCase());
+    if (existing) {
+      setItens(prev => prev.map(i =>
+        i.nome.toLowerCase() === item.nome.toLowerCase()
+          ? { ...i, quantidade: i.quantidade + item.quantidade }
+          : i
+      ));
+      toast(`+${item.quantidade}x "${item.nome}"`, "info");
+    } else {
+      setItens(prev => [...prev, item]);
       toast(`"${item.nome}" adicionado ao pedido`, "info");
-      return [...prev, item];
-    });
+    }
   };
 
   const updateItemQty = (idx, delta) => {
@@ -868,9 +870,11 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
         solicitante: nomeSolicitante,
         operadorId: activeUser?.userId || null,
         itens,
+        prioridade: prioridade || "medio",
         observacao: obs.trim(), status: "pendente",
         criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp(),
       });
+      setPrioridade("medio");
       setEnviado(codigo);
       toast("Requisição registrada com sucesso!", "success");
     } catch (e) { toast("Erro ao enviar: " + e.message, "error"); }
@@ -1016,6 +1020,74 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
         <div className="divider" />
 
         <div style={{ marginBottom: 16 }}>
+          <label className="form-label" style={{ marginBottom: 6, display: "block" }}>
+            Nível de Prioridade
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            <button
+              type="button"
+              className={`btn ${prioridade === "baixo" ? "btn-accent" : "btn-outline"}`}
+              style={{
+                padding: "9px 6px",
+                fontSize: 12,
+                fontWeight: 600,
+                borderColor: prioridade === "baixo" ? "#3b82f6" : "var(--border2)",
+                background: prioridade === "baixo" ? "rgba(59, 130, 246, 0.18)" : "transparent",
+                color: prioridade === "baixo" ? "#60a5fa" : "var(--text-mid)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+              onClick={() => setPrioridade("baixo")}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", display: "inline-block" }} />
+              Baixa
+            </button>
+            <button
+              type="button"
+              className={`btn ${prioridade === "medio" ? "btn-accent" : "btn-outline"}`}
+              style={{
+                padding: "9px 6px",
+                fontSize: 12,
+                fontWeight: 600,
+                borderColor: prioridade === "medio" ? "#eab308" : "var(--border2)",
+                background: prioridade === "medio" ? "rgba(234, 179, 8, 0.18)" : "transparent",
+                color: prioridade === "medio" ? "#facc15" : "var(--text-mid)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+              onClick={() => setPrioridade("medio")}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#eab308", display: "inline-block" }} />
+              Média
+            </button>
+            <button
+              type="button"
+              className={`btn ${prioridade === "alto" ? "btn-accent" : "btn-outline"}`}
+              style={{
+                padding: "9px 6px",
+                fontSize: 12,
+                fontWeight: 600,
+                borderColor: prioridade === "alto" ? "#ef4444" : "var(--border2)",
+                background: prioridade === "alto" ? "rgba(239, 68, 68, 0.18)" : "transparent",
+                color: prioridade === "alto" ? "#f87171" : "var(--text-mid)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+              onClick={() => setPrioridade("alto")}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
+              Alta
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
           <label className="form-label">Observações <span style={{ color: "var(--text-dim)", fontWeight: 400 }}>(opcional)</span></label>
           <textarea className="form-textarea"
             placeholder="Grau de urgência, setor final de entrega..."
@@ -1084,6 +1156,11 @@ function HistoricoRequisicoes({ setorKey, setor, getColPrivate }) {
   const cls = { pendente: "s-pendente", aprovado: "s-aprovado", recusado: "s-recusado", entregue: "s-entregue" };
   const lbl = { pendente: "Pendente", aprovado: "Aprovado", recusado: "Recusado", entregue: "Entregue" };
   const iconsMap = { pendente: "info", aprovado: "checkCircle", recusado: "x", entregue: "truck" };
+  const prioBadges = {
+    baixo: { label: "BAIXA", color: "#3b82f6", bg: "rgba(59,130,246,.12)", border: "#3b82f6" },
+    medio: { label: "MÉDIA", color: "#eab308", bg: "rgba(234,179,8,.12)", border: "#eab308" },
+    alto:  { label: "ALTA",  color: "#ef4444", bg: "rgba(239,68,68,.12)", border: "#ef4444" },
+  };
 
   if (loading) return <div className="empty"><span className="spinner" /></div>;
 
@@ -1100,10 +1177,20 @@ function HistoricoRequisicoes({ setorKey, setor, getColPrivate }) {
             <div key={r.id} className="hist-item">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
                 <div className="hist-code">{r.codigo}</div>
-                <span className={`status-badge ${cls[r.status] || "s-pendente"}`}>
-                  <Icon name={iconsMap[r.status] || "info"} size={12} />
-                  {lbl[r.status] || r.status}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {r.prioridade && prioBadges[r.prioridade] && (
+                    <span style={{
+                      padding: "2px 6px", borderRadius: 3, fontSize: 9, fontFamily: "var(--mono)", fontWeight: 700,
+                      color: prioBadges[r.prioridade].color, background: prioBadges[r.prioridade].bg, border: `1px solid ${prioBadges[r.prioridade].border}`
+                    }}>
+                      {prioBadges[r.prioridade].label}
+                    </span>
+                  )}
+                  <span className={`status-badge ${cls[r.status] || "s-pendente"}`}>
+                    <Icon name={iconsMap[r.status] || "info"} size={12} />
+                    {lbl[r.status] || r.status}
+                  </span>
+                </div>
               </div>
               <div className="hist-date">{fmtDate(r.criadoEm)} · Solicitante: <strong>{r.solicitante}</strong></div>
               <div className="hist-items">{r.itens?.map(i => `${i.nome} (${i.quantidade}×)`).join(", ")}</div>
