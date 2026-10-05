@@ -28,3 +28,11 @@ dist-ssr
 .env.local
 .env.production
 .env.*.local
+
+# Arquivos de vídeo/mídia pesados (>100MB, limite GitHub)
+*.mp4
+*.mov
+*.avi
+*.mkv
+public/landing/sys giro2.mp4
+public/assets/systemstock/frames/
