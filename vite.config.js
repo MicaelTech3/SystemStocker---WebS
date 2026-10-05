@@ -13,6 +13,10 @@ export default defineConfig({
   },
   server: {
     https: true,
-    host: true
+    host: true,
+    watch: {
+      usePolling: true,
+      interval: 1000
+    }
   }
 })
