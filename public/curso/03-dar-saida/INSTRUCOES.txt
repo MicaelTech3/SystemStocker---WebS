@@ -1,6 +1,0 @@
-PASTA: 03-dar-saida
-Cole aqui os prints das etapas de saída no estoque:
-- passo-1.png: Produto selecionado na lista
-- passo-2.png: Botão vermelho de saída (−) em destaque
-- passo-3.png: Quantidade a retirar informada com o motivo de consumo
-- passo-4.png: Saldo do produto reduzido e aviso em tela

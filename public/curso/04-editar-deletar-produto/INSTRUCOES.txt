@@ -1,6 +1,0 @@
-PASTA: 04-editar-deletar-produto
-Cole aqui os prints das etapas de edição e exclusão de produtos:
-- passo-1.png: Ícone de lápis (Editar) ao lado do produto
-- passo-2.png: Alteração dos dados no modal e clique em Salvar
-- passo-3.png: Ícone da lixeira (Excluir) ao lado do produto
-- passo-4.png: Alerta de confirmação de exclusão segura

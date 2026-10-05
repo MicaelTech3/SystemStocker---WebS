@@ -1,5 +1,0 @@
-PASTA: 08-aprovar-requisicao
-Cole aqui os prints das etapas de aprovação e despacho:
-- passo-1.png: Aba 'Requisições' do painel principal com os pedidos pendentes
-- passo-2.png: Detalhes expandidos da requisição com tempo pendente e solicitante
-- passo-3.png: Botões de ação 'Aprovar', 'Entregar' (baixa automática) ou 'Recusar'

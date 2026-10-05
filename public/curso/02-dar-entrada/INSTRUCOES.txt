@@ -1,6 +1,0 @@
-PASTA: 02-dar-entrada
-Cole aqui os prints das etapas de entrada no estoque:
-- passo-1.png: Localização do produto na lista de estoque
-- passo-2.png: Botão verde de entrada (+) em destaque
-- passo-3.png: Modal preenchido com a quantidade a ser somada e observação/NF
-- passo-4.png: Saldo do produto atualizado com notificação de confirmação
