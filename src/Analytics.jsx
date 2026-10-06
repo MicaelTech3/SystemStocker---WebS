@@ -8,7 +8,7 @@
 import { useState, useEffect } from "react";
 import { db, auth } from "./firebase.js";
 import {
-  collection, getDocs, query, orderBy, limit, doc, addDoc, updateDoc, deleteDoc, serverTimestamp
+  collection, getDocs, query, orderBy, limit
 } from "firebase/firestore";
 
 // ─── helpers ─────────────────────────────────────────────────
@@ -410,25 +410,7 @@ export function Analytics({ setor, sectorObj, products, onRefresh, addToast }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Product Creation Fields
-  const [showCreate, setShowCreate] = useState(false);
-  const [prodNome, setProdNome] = useState("");
-  const [prodPreco, setProdPreco] = useState("");
-  const [prodQtd, setProdQtd] = useState("");
-  const [prodQtdLoja, setProdQtdLoja] = useState("");
-  const [prodBarcode, setProdBarcode] = useState("");
-  const [prodCat, setProdCat] = useState("");
-  const [savingProduct, setSavingProduct] = useState(false);
 
-  // Product Edit Modal Fields
-  const [editProduct, setEditProduct] = useState(null);
-  const [editNome, setEditNome] = useState("");
-  const [editPreco, setEditPreco] = useState("");
-  const [editQtd, setEditQtd] = useState("");
-  const [editQtdLoja, setEditQtdLoja] = useState("");
-  const [editBarcode, setEditBarcode] = useState("");
-  const [editCat, setEditCat] = useState("");
-  const [updatingProduct, setUpdatingProduct] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -533,106 +515,7 @@ export function Analytics({ setor, sectorObj, products, onRefresh, addToast }) {
     (p.nome || "").toLowerCase().includes(q) || (p.categoria && p.categoria.toLowerCase().includes(q))
   );
 
-  // Form handlers
-  const handleCreateProduct = async (e) => {
-    e.preventDefault();
-    if (!prodNome.trim()) { addToast("Digite o nome do produto.", "error"); return; }
-    if (!prodPreco || Number(prodPreco) <= 0) { addToast("Insira um preço de venda válido.", "error"); return; }
-    if (!prodCat) { addToast("Selecione uma categoria.", "error"); return; }
 
-    setSavingProduct(true);
-    try {
-      const docData = {
-        nome: prodNome.trim(),
-        precoVenda: Number(prodPreco),
-        quantidade: Number(prodQtd) || 0,
-        qtdLoja: Number(prodQtdLoja) || 0,
-        codigoBarras: prodBarcode.trim(),
-        categoria: prodCat,
-        barcodes: prodBarcode.trim() ? [prodBarcode.trim()] : [],
-        criadoEm: new Date().toISOString()
-      };
-
-      // 1. Save in products subcollection
-      await addDoc(collection(db, gc(setor, "produtos")), docData);
-
-      // 2. Save duplicate copy in default global templates
-      await addDoc(collection(db, gc(setor, "produtos_padrao")), {
-        nome: prodNome.trim(),
-        precoVenda: Number(prodPreco),
-        categoria: prodCat,
-        criadoEm: new Date().toISOString()
-      });
-
-      // 3. Log
-      await addDoc(collection(db, gc(setor, "log")), {
-        tipo: "entrada",
-        descricao: `Novo produto cadastrado: ${prodNome.trim()} (Estoque: ${Number(prodQtd) || 0})`,
-        ts: serverTimestamp(),
-        usuario: "Admin Web"
-      });
-
-      addToast("Produto criado com sucesso!", "success");
-      setProdNome("");
-      setProdPreco("");
-      setProdQtd("");
-      setProdQtdLoja("");
-      setProdBarcode("");
-      setShowCreate(false);
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      addToast("Erro ao criar produto: " + err.message, "error");
-    } finally {
-      setSavingProduct(false);
-    }
-  };
-
-  const handleOpenEdit = (p) => {
-    setEditProduct(p);
-    setEditNome(p.nome || "");
-    setEditPreco(p.precoVenda || "");
-    setEditQtd(p.quantidade || "");
-    setEditQtdLoja(p.qtdLoja || "");
-    setEditBarcode(p.codigoBarras || p.barcode || "");
-    setEditCat(p.categoria || "");
-  };
-
-  const handleUpdateProduct = async (e) => {
-    e.preventDefault();
-    if (!editProduct) return;
-    setUpdatingProduct(true);
-    try {
-      const docRef = doc(db, gc(setor, "produtos"), editProduct.id);
-      await updateDoc(docRef, {
-        nome: editNome.trim(),
-        precoVenda: Number(editPreco),
-        quantidade: Number(editQtd) || 0,
-        qtdLoja: Number(editQtdLoja) || 0,
-        codigoBarras: editBarcode.trim(),
-        barcodes: editBarcode.trim() ? [editBarcode.trim()] : [],
-        categoria: editCat
-      });
-
-      addToast("Produto atualizado!", "success");
-      setEditProduct(null);
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      addToast("Erro ao salvar: " + err.message, "error");
-    } finally {
-      setUpdatingProduct(false);
-    }
-  };
-
-  const handleDeleteProduct = async (p) => {
-    if (!confirm(`Deseja mesmo excluir o produto "${p.nome}" definitivamente?`)) return;
-    try {
-      await deleteDoc(doc(db, gc(setor, "produtos"), p.id));
-      addToast("Produto removido.", "success");
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      addToast("Erro ao excluir: " + err.message, "error");
-    }
-  };
 
   if (loading) return <div className="empty"><span className="spinner" /></div>;
 
@@ -643,58 +526,9 @@ export function Analytics({ setor, sectorObj, products, onRefresh, addToast }) {
           <div className="page-title">ANALYTICS</div>
           <div className="page-sub">{sectorObj?.label || sectorObj?.id || setor} · {todos.length} registros totais</div>
         </div>
-
-        <button className="btn btn-accent" onClick={() => setShowCreate(!showCreate)} style={{ fontSize: 11, padding: "8px 14px" }}>
-          {showCreate ? "✕ Cancelar Cadastro" : "＋ Criar Novo Produto"}
-        </button>
       </div>
 
-      {/* CREATE PRODUCT FORM */}
-      {showCreate && (
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r)", padding: 20, marginBottom: 18 }}>
-          <h3 style={{ fontFamily: "var(--display)", fontSize: 18, marginBottom: 14, letterSpacing: 1 }}>NOVO PRODUTO NO SETOR</h3>
-          <form onSubmit={handleCreateProduct} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>NOME DO PRODUTO</label>
-              <input type="text" required placeholder="Ex: Coca-cola 2L" className="pos-search-input" style={{ width: "100%", padding: 8, fontSize: 13 }} value={prodNome} onChange={e => setProdNome(e.target.value)} />
-            </div>
 
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>PREÇO DE VENDA (R$)</label>
-              <input type="number" step="0.01" min="0.01" required placeholder="Ex: 8.50" className="pos-search-input" style={{ width: "100%", padding: 8, fontSize: 13 }} value={prodPreco} onChange={e => setProdPreco(e.target.value)} />
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>QTD NO ESTOQUE GERAL</label>
-              <input type="number" placeholder="Ex: 50" className="pos-search-input" style={{ width: "100%", padding: 8, fontSize: 13 }} value={prodQtd} onChange={e => setProdQtd(e.target.value)} />
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>QTD NA LOJA (POS)</label>
-              <input type="number" placeholder="Ex: 10" className="pos-search-input" style={{ width: "100%", padding: 8, fontSize: 13 }} value={prodQtdLoja} onChange={e => setProdQtdLoja(e.target.value)} />
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>CÓDIGO DE BARRAS</label>
-              <input type="text" placeholder="Código EAN" className="pos-search-input" style={{ width: "100%", padding: 8, fontSize: 13 }} value={prodBarcode} onChange={e => setProdBarcode(e.target.value)} />
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>CATEGORIA</label>
-              <select className="pos-search-input" style={{ width: "100%", padding: 8, fontSize: 13 }} value={prodCat} onChange={e => setProdCat(e.target.value)}>
-                {cats.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                {cats.length === 0 && <option value="">Sem categorias</option>}
-              </select>
-            </div>
-
-            <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button type="submit" className="btn btn-accent btn-lg" disabled={savingProduct}>
-                {savingProduct ? "CADASTRANDO..." : "CADASTRAR PRODUTO"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       <SearchA value={search} onChange={setSearch} placeholder="Filtrar produto ou categoria..." />
 
@@ -704,14 +538,13 @@ export function Analytics({ setor, sectorObj, products, onRefresh, addToast }) {
           ["geral", "📊 Geral"],
           ["rotatividade", "🔄 Rotatividade"],
           ["requisicoes", "📋 Por Requisição"],
-          ["produtos", "⚙️ Preços & Estoque"]
         ].map(([k, l]) => (
           <button key={k} className={`btn ${viewTab === k ? "btn-accent" : "btn-outline"}`} style={{ fontSize: 11, padding: "7px 14px" }} onClick={() => setViewTab(k)}>{l}</button>
         ))}
       </div>
 
       {/* Período — apenas nas tabs que usam */}
-      {viewTab !== "rotatividade" && viewTab !== "produtos" && (
+      {viewTab !== "rotatividade" && (
         <div className="period-tabs">
           {[["dia", "Hoje"], ["semana", "Semana"], ["mes", "Mês"]].map(([k, l]) => (
             <button key={k} className={`ptab ${periodo === k ? "active" : ""}`} onClick={() => setPeriodo(k)}>{l}</button>
@@ -953,110 +786,7 @@ export function Analytics({ setor, sectorObj, products, onRefresh, addToast }) {
         </>
       )}
 
-      {/* ══════════ TAB PREÇOS & ESTOQUE ══════════ */}
-      {viewTab === "produtos" && (
-        <div className="table-card">
-          <div className="table-card-header">
-            <div className="table-card-title">LISTA DE PREÇOS E ESTOQUE</div>
-            <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--text-dim)" }}>Total: {filteredProducts.length} itens</span>
-          </div>
 
-          {filteredProducts.length === 0 ? (
-            <div className="empty">Nenhum produto cadastrado ou correspondente ao filtro.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {filteredProducts.map(p => (
-                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nome}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "var(--mono)", marginTop: 2 }}>
-                      Cat: <strong>{p.categoria || "Geral"}</strong> | EAN: <strong>{p.codigoBarras || "—"}</strong>
-                    </div>
-                    <div style={{ display: "flex", gap: 14, marginTop: 6, fontSize: 11, fontFamily: "var(--mono)" }}>
-                      <span>Geral: <strong style={{ color: (p.quantidade || 0) > 5 ? "var(--text)" : "var(--danger)" }}>{p.quantidade || 0}</strong></span>
-                      <span>Loja POS: <strong style={{ color: (p.qtdLoja || 0) > 0 ? "var(--success)" : "var(--warn)" }}>{p.qtdLoja || 0}</strong></span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--mono)" }}>PREÇO VENDA</div>
-                      <div style={{ fontSize: 16, fontFamily: "var(--mono)", fontWeight: 600, color: "var(--accent)" }}>
-                        R$ {Number(p.precoVenda || 0).toFixed(2)}
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-outline" style={{ padding: "6px 10px" }} onClick={() => handleOpenEdit(p)}>
-                        <IcoEdit />
-                      </button>
-                      <button className="btn btn-outline" style={{ padding: "6px 10px", borderColor: "var(--danger)", color: "var(--danger)" }} onClick={() => handleDeleteProduct(p)}>
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* EDIT PRODUCT MODAL */}
-      {editProduct && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r)", width: "90%", maxWidth: 440, padding: 24 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ fontFamily: "var(--display)", fontSize: 20 }}>EDITAR PRODUTO</h3>
-              <button onClick={() => setEditProduct(null)} style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", color: "var(--text)" }}>✕</button>
-            </div>
-
-            <form onSubmit={handleUpdateProduct} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>NOME DO PRODUTO</label>
-                <input type="text" required className="pos-search-input" value={editNome} onChange={e => setEditNome(e.target.value)} />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>PREÇO DE VENDA (R$)</label>
-                  <input type="number" step="0.01" min="0" required className="pos-search-input" value={editPreco} onChange={e => setEditPreco(e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>CÓDIGO DE BARRAS (EAN)</label>
-                  <input type="text" className="pos-search-input" value={editBarcode} onChange={e => setEditBarcode(e.target.value)} />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>ESTOQUE GERAL</label>
-                  <input type="number" className="pos-search-input" value={editQtd} onChange={e => setEditQtd(e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>ESTOQUE LOJA (POS)</label>
-                  <input type="number" className="pos-search-input" value={editQtdLoja} onChange={e => setEditQtdLoja(e.target.value)} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-dim)", marginBottom: 4 }}>CATEGORIA</label>
-                <select className="pos-search-input" value={editCat} onChange={e => setEditCat(e.target.value)}>
-                  {cats.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                  {cats.length === 0 && <option value="">Sem categorias</option>}
-                </select>
-              </div>
-
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                <button type="button" className="btn btn-outline" style={{ flex: 1, padding: 10 }} onClick={() => setEditProduct(null)}>Cancelar</button>
-                <button type="submit" className="btn btn-accent" style={{ flex: 1, padding: 10 }} disabled={updatingProduct}>
-                  {updatingProduct ? "SALVANDO..." : "SALVAR ALTERAÇÕES"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
