@@ -473,8 +473,8 @@ export default function Wiki() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "var(--bg, #0b0f17)",
-      color: "var(--text, #f0f6fc)",
+      background: "#0b0f17",
+      color: "#f0f6fc",
       fontFamily: "var(--sans, system-ui, -apple-system, sans-serif)",
       paddingBottom: 60
     }}>
@@ -515,7 +515,7 @@ export default function Wiki() {
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: "var(--display, sans-serif)", fontSize: 18, fontWeight: 800, letterSpacing: "1px", color: "var(--text, #fff)" }}>
+                <span style={{ fontFamily: "var(--display, sans-serif)", fontSize: 18, fontWeight: 800, letterSpacing: "1px", color: "#f0f6fc" }}>
                   SYSTEM STOCK
                 </span>
                 <span style={{
@@ -531,7 +531,7 @@ export default function Wiki() {
                   WIKI OFICIAL
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-dim, #8b949e)" }}>
+              <div style={{ fontSize: 11, color: "#8b949e" }}>
                 Base de Conhecimento, Manuais e Guias Passo a Passo
               </div>
             </div>
@@ -543,9 +543,9 @@ export default function Wiki() {
               type="button"
               onClick={handleCopyWikiLink}
               style={{
-                background: "var(--surface2, #161b22)",
-                border: "1px solid var(--border2, rgba(255,255,255,0.15))",
-                color: "var(--text, #f0f6fc)",
+                background: "#161b22",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#f0f6fc",
                 padding: "8px 14px",
                 borderRadius: "8px",
                 fontSize: 12,
@@ -597,7 +597,7 @@ export default function Wiki() {
           gap: 6,
           background: "rgba(249,115,22,0.1)",
           border: "1px solid rgba(249,115,22,0.25)",
-          color: "var(--accent, #f97316)",
+          color: "#f97316",
           padding: "5px 12px",
           borderRadius: "20px",
           fontSize: 11,
@@ -613,16 +613,16 @@ export default function Wiki() {
           fontSize: "clamp(24px, 4vw, 38px)",
           fontWeight: 800,
           letterSpacing: "-0.5px",
-          color: "var(--text, #ffffff)",
+          color: "#ffffff",
           margin: "0 0 12px 0",
           lineHeight: 1.2
         }}>
-          Wiki do <span style={{ color: "var(--accent, #f97316)" }}>System Stock</span>: Guia Completo do Sistema
+          Wiki do <span style={{ color: "#f97316" }}>System Stock</span>: Guia Completo do Sistema
         </h1>
 
         <p style={{
           fontSize: "clamp(13px, 2vw, 15px)",
-          color: "var(--text-dim, #8b949e)",
+          color: "#8b949e",
           maxWidth: 680,
           margin: "0 auto 28px auto",
           lineHeight: 1.6
@@ -643,11 +643,11 @@ export default function Wiki() {
             onChange={e => setBusca(e.target.value)}
             style={{
               width: "100%",
-              background: "var(--surface, #111726)",
-              border: "1.5px solid var(--border2, rgba(255,255,255,0.18))",
+              background: "#111726",
+              border: "1.5px solid rgba(255,255,255,0.18)",
               borderRadius: "12px",
               padding: "14px 44px 14px 44px",
-              color: "#fff",
+              color: "#f0f6fc",
               fontSize: 14,
               fontFamily: "var(--sans, sans-serif)",
               boxSizing: "border-box",
@@ -694,9 +694,9 @@ export default function Wiki() {
                 type="button"
                 onClick={() => setCatSel(cat.id)}
                 style={{
-                  background: active ? "var(--accent, #f97316)" : "var(--surface, #111726)",
-                  color: active ? "#ffffff" : "var(--text-dim, #8b949e)",
-                  border: active ? "1.5px solid var(--accent, #f97316)" : "1px solid var(--border, rgba(255,255,255,0.1))",
+                  background: active ? "#f97316" : "#111726",
+                  color: active ? "#ffffff" : "#8b949e",
+                  border: active ? "1.5px solid #f97316" : "1px solid rgba(255,255,255,0.1)",
                   padding: "7px 14px",
                   borderRadius: "20px",
                   fontSize: 12,
@@ -724,16 +724,16 @@ export default function Wiki() {
       }}>
         {filtrados.length === 0 ? (
           <div style={{
-            background: "var(--surface, #111726)",
-            border: "1px dashed var(--border, rgba(255,255,255,0.15))",
+            background: "#111726",
+            border: "1px dashed rgba(255,255,255,0.15)",
             borderRadius: "16px",
             padding: "50px 20px",
             textAlign: "center",
             marginTop: 20
           }}>
-            <Icon name="search" size={36} color="var(--text-dim, #8b949e)" />
+            <Icon name="search" size={36} color="#8b949e" />
             <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Nenhum artigo encontrado</h3>
-            <p style={{ fontSize: 13, color: "var(--text-dim, #8b949e)", maxWidth: 380, margin: "0 auto" }}>
+            <p style={{ fontSize: 13, color: "#8b949e", maxWidth: 380, margin: "0 auto" }}>
               Não encontramos artigos com o termo "{busca}". Tente pesquisar por palavras como "produto", "saída", "entrada", "setor" ou "operador".
             </p>
             <button
@@ -741,9 +741,9 @@ export default function Wiki() {
               onClick={() => { setBusca(""); setCatSel("todos"); }}
               style={{
                 marginTop: 16,
-                background: "var(--surface2, #161b22)",
-                border: "1px solid var(--border2, rgba(255,255,255,0.2))",
-                color: "var(--accent, #f97316)",
+                background: "#161b22",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#f97316",
                 padding: "8px 16px",
                 borderRadius: "8px",
                 fontSize: 12,
@@ -764,8 +764,8 @@ export default function Wiki() {
                 <div
                   key={tut.id}
                   style={{
-                    background: "var(--surface, #111726)",
-                    border: isExpanded ? "1.5px solid var(--accent, #f97316)" : "1px solid var(--border, rgba(255,255,255,0.08))",
+                    background: "#111726",
+                    border: isExpanded ? "1.5px solid #f97316" : "1px solid rgba(255,255,255,0.08)",
                     borderRadius: "16px",
                     overflow: "hidden",
                     transition: "all 0.25s ease",
@@ -782,7 +782,7 @@ export default function Wiki() {
                       justifyContent: "space-between",
                       cursor: "pointer",
                       background: isExpanded ? "rgba(249,115,22,0.04)" : "transparent",
-                      borderBottom: isExpanded ? "1px solid var(--border, rgba(255,255,255,0.08))" : "none"
+                      borderBottom: isExpanded ? "1px solid rgba(255,255,255,0.08)" : "none"
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flex: 1, minWidth: 0 }}>
@@ -792,7 +792,7 @@ export default function Wiki() {
                         borderRadius: "12px",
                         background: `${tut.badgeColor || "var(--accent)"}18`,
                         border: `1px solid ${tut.badgeColor || "var(--accent)"}33`,
-                        color: tut.badgeColor || "var(--accent, #f97316)",
+                        color: tut.badgeColor || "#f97316",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -817,7 +817,7 @@ export default function Wiki() {
                             SEÇÃO {idx + 1} • {tut.badge.toUpperCase()}
                           </span>
 
-                          <span style={{ fontSize: 11, color: "var(--text-dim, #8b949e)", fontFamily: "var(--mono, monospace)" }}>
+                          <span style={{ fontSize: 11, color: "#8b949e", fontFamily: "var(--mono, monospace)" }}>
                             {tut.steps.length} Passos
                           </span>
 
@@ -842,9 +842,9 @@ export default function Wiki() {
                             <span style={{
                               fontSize: 10,
                               fontFamily: "var(--sans, sans-serif)",
-                              color: "var(--text-dim, #8b949e)",
+                              color: "#8b949e",
                               background: "rgba(255,255,255,0.04)",
-                              border: "1px solid var(--border, rgba(255,255,255,0.08))",
+                              border: "1px solid rgba(255,255,255,0.08)",
                               padding: "2px 8px",
                               borderRadius: "10px"
                             }}>
@@ -857,7 +857,7 @@ export default function Wiki() {
                           fontFamily: "var(--sans, sans-serif)",
                           fontSize: "clamp(16px, 2.5vw, 19px)",
                           fontWeight: 700,
-                          color: "var(--text, #fff)",
+                          color: "#ffffff",
                           margin: 0,
                           lineHeight: 1.3
                         }}>
@@ -866,7 +866,7 @@ export default function Wiki() {
 
                         <p style={{
                           fontSize: 12,
-                          color: "var(--text-dim, #8b949e)",
+                          color: "#8b949e",
                           margin: "6px 0 0 0",
                           lineHeight: 1.5
                         }}>
@@ -885,8 +885,8 @@ export default function Wiki() {
                           }}
                           style={{
                             background: "rgba(249,115,22,0.15)",
-                            border: "1px solid var(--accent, #f97316)",
-                            color: "var(--accent, #f97316)",
+                            border: "1px solid #f97316",
+                            color: "#f97316",
                             padding: "6px 12px",
                             borderRadius: "8px",
                             fontSize: 11,
@@ -905,9 +905,9 @@ export default function Wiki() {
                         width: 32,
                         height: 32,
                         borderRadius: "8px",
-                        background: "var(--surface2, #161b22)",
-                        border: "1px solid var(--border, rgba(255,255,255,0.1))",
-                        color: "var(--text-dim, #8b949e)",
+                        background: "#161b22",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        color: "#8b949e",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -922,7 +922,7 @@ export default function Wiki() {
 
                   {/* Conteúdo Expandido com os Passos Escritos Detalhados */}
                   {isExpanded && (
-                    <div style={{ padding: "24px", background: "var(--surface, #111726)" }}>
+                    <div style={{ padding: "24px", background: "#111726" }}>
                       <div style={{
                         display: "flex",
                         alignItems: "center",
@@ -931,11 +931,11 @@ export default function Wiki() {
                         gap: 10,
                         marginBottom: 20,
                         paddingBottom: 12,
-                        borderBottom: "1px solid var(--border, rgba(255,255,255,0.06))"
+                        borderBottom: "1px solid rgba(255,255,255,0.06)"
                       }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <Icon name="clipboardList" size={16} color="var(--accent, #f97316)" />
-                          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--mono, monospace)", color: "var(--text, #fff)", letterSpacing: "0.5px" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "var(--mono, monospace)", color: "#ffffff", letterSpacing: "0.5px" }}>
                             ROTEIRO PASSO A PASSO
                           </span>
                         </div>
@@ -945,7 +945,7 @@ export default function Wiki() {
                             type="button"
                             onClick={() => setActiveVideo({ url: tut.videoUrl, title: tut.title })}
                             style={{
-                              background: "var(--accent, #f97316)",
+                              background: "#f97316",
                               color: "#fff",
                               border: "none",
                               padding: "6px 14px",
@@ -963,7 +963,7 @@ export default function Wiki() {
                         ) : (
                           <div style={{
                             fontSize: 11,
-                            color: "var(--text-dim, #8b949e)",
+                            color: "#8b949e",
                             fontFamily: "var(--mono, monospace)",
                             background: "rgba(255,255,255,0.03)",
                             padding: "4px 10px",
@@ -980,8 +980,8 @@ export default function Wiki() {
                           <div
                             key={st.num}
                             style={{
-                              background: "var(--surface2, #161b22)",
-                              border: "1px solid var(--border2, rgba(255,255,255,0.08))",
+                              background: "#161b22",
+                              border: "1px solid rgba(255,255,255,0.08)",
                               borderRadius: "12px",
                               padding: "16px 18px",
                               display: "flex",
@@ -1014,7 +1014,7 @@ export default function Wiki() {
                               <h3 style={{
                                 fontSize: 14,
                                 fontWeight: 700,
-                                color: "var(--text, #fff)",
+                                color: "#f0f6fc",
                                 margin: "0 0 6px 0",
                                 display: "flex",
                                 alignItems: "center",
@@ -1025,7 +1025,7 @@ export default function Wiki() {
 
                               <p style={{
                                 fontSize: 13,
-                                color: "var(--text-mid, #c9d1d9)",
+                                color: "#c9d1d9",
                                 margin: "0 0 8px 0",
                                 lineHeight: 1.6
                               }}>
@@ -1039,7 +1039,7 @@ export default function Wiki() {
                                   padding: "8px 12px",
                                   borderRadius: "0 8px 8px 0",
                                   fontSize: 12,
-                                  color: "var(--accent, #f97316)",
+                                  color: "#f97316",
                                   display: "flex",
                                   alignItems: "center",
                                   gap: 6
@@ -1075,23 +1075,23 @@ export default function Wiki() {
         maxWidth: 1180,
         margin: "60px auto 0 auto",
         padding: "24px 20px 0 20px",
-        borderTop: "1px solid var(--border, rgba(255,255,255,0.08))",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         flexWrap: "wrap",
         gap: 16,
         fontSize: 12,
-        color: "var(--text-dim, #8b949e)"
+        color: "#8b949e"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="package" size={16} color="var(--accent, #f97316)" />
           <span>System Stock • Wiki Oficial & Base de Conhecimento</span>
         </div>
         <div style={{ display: "flex", gap: 16 }}>
-          <Link to="/" style={{ color: "var(--text-dim, #8b949e)", textDecoration: "none" }}>Painel Principal</Link>
-          <Link to="/requisicao" style={{ color: "var(--text-dim, #8b949e)", textDecoration: "none" }}>Requisição de Estoque</Link>
-          <Link to="/wiki" style={{ color: "var(--accent, #f97316)", textDecoration: "none", fontWeight: 600 }}>Wiki do Sistema</Link>
+          <Link to="/" style={{ color: "#8b949e", textDecoration: "none" }}>Painel Principal</Link>
+          <Link to="/requisicao" style={{ color: "#8b949e", textDecoration: "none" }}>Requisição de Estoque</Link>
+          <Link to="/wiki" style={{ color: "#f97316", textDecoration: "none", fontWeight: 600 }}>Wiki do Sistema</Link>
         </div>
       </footer>
     </div>
