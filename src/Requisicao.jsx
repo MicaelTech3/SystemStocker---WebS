@@ -608,7 +608,11 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
     .filter(p => !jaAdicionados.some(j => j.nome.toLowerCase() === p.nome.toLowerCase()));
 
   const estoque = sel ? (estoqueMap[sel.nome] ?? null) : null;
-  const qtdNum = Math.max(1, parseInt(qtd) || 1);
+  const maxDisponivel = estoque !== null ? Math.max(0, estoque) : null;
+  const parsedQtd = parseInt(qtd) || 1;
+  const qtdNum = maxDisponivel !== null && maxDisponivel > 0
+    ? Math.min(Math.max(1, parsedQtd), maxDisponivel)
+    : Math.max(1, parsedQtd);
 
   const handleSelect = (p) => {
     setSel(prev => prev?.id === p.id ? null : p);
@@ -616,8 +620,19 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
   };
 
   const handleAdd = () => {
-    if (!sel || qtdNum < 1) return;
-    onAdd({ nome: sel.nome, categoria: sel.categoria || "Geral", quantidade: qtdNum });
+    if (!sel) return;
+    const est = estoqueMap[sel.nome] ?? null;
+    if (est !== null && est <= 0) {
+      alert(`"${sel.nome}" está zerado no estoque e não pode ser solicitado.`);
+      return;
+    }
+    const finalQtd = est !== null && est > 0 ? Math.min(qtdNum, est) : qtdNum;
+    onAdd({
+      nome: sel.nome,
+      categoria: sel.categoria || "Geral",
+      quantidade: finalQtd,
+      estoqueMax: est
+    });
     setSel(null);
     setQtd(1);
     setTimeout(() => inputRef.current?.focus(), 60);
@@ -680,7 +695,7 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
                 className="btn btn-outline"
                 style={{ fontSize: 11, padding: "7px 14px", gap: 6, borderColor: "var(--accent)", color: "var(--accent)" }}
                 onClick={() => {
-                  onAdd({ nome: busca.trim(), categoria: catFiltro || "Geral", quantidade: 1 });
+                  onAdd({ nome: busca.trim(), categoria: catFiltro || "Geral", quantidade: 1, estoqueMax: null });
                   setBusca("");
                   setSel(null);
                 }}
@@ -699,7 +714,7 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
                 key={p.id}
                 className={`prod-row ${isSel ? "selected" : ""}`}
                 onClick={() => handleSelect(p)}
-                style={{ cursor: "pointer" }}
+                style={{ cursor: "pointer", opacity: zero ? 0.6 : 1 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="prod-row-name">{p.nome}</div>
@@ -707,7 +722,7 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
                 </div>
                 {stk !== null && (
                   <div className={`prod-stock ${zero ? "warn" : stk <= 5 ? "warn" : "ok"}`}>
-                    {zero ? "0 un. (solicitar reposição)" : `${stk} un. em estoque`}
+                    {zero ? "0 un. (indisponível)" : `${stk} un. em estoque`}
                   </div>
                 )}
               </div>
@@ -729,22 +744,36 @@ function AddItemInline({ setorKey, getCol, onAdd, jaAdicionados, activeUser }) {
               className="qty-input"
               value={qtd}
               min={1}
-              onChange={e => setQtd(e.target.value)}
+              max={maxDisponivel !== null && maxDisponivel > 0 ? maxDisponivel : undefined}
+              onChange={e => {
+                const val = parseInt(e.target.value) || 1;
+                if (maxDisponivel !== null && maxDisponivel > 0 && val > maxDisponivel) {
+                  setQtd(maxDisponivel);
+                } else {
+                  setQtd(e.target.value);
+                }
+              }}
               onKeyDown={handleKeyQtd}
             />
             <button className="qty-btn"
-              onClick={() => setQtd(q => (parseInt(q) || 1) + 1)}>+</button>
+              disabled={maxDisponivel !== null && maxDisponivel > 0 && (parseInt(qtd) || 1) >= maxDisponivel}
+              onClick={() => setQtd(q => {
+                const next = (parseInt(q) || 1) + 1;
+                return maxDisponivel !== null && maxDisponivel > 0 ? Math.min(next, maxDisponivel) : next;
+              })}>+</button>
           </div>
           <button
             className="btn btn-accent"
             style={{ padding: "8px 16px", fontSize: 12 }}
             onClick={handleAdd}
-            disabled={qtdNum < 1}
+            disabled={maxDisponivel !== null && maxDisponivel <= 0}
           >
-            <Icon name="plus" size={14} /> ADICIONAR
+            <Icon name="plus" size={14} /> {maxDisponivel !== null && maxDisponivel <= 0 ? "SEM ESTOQUE" : "ADICIONAR"}
           </button>
-          <div style={{ width: "100%", fontFamily: "var(--mono)", fontSize: 10, marginTop: 4, color: "var(--text-dim)" }}>
-            {estoque !== null ? `Estoque atual no setor: ${estoque} un.` : "Produto disponível para solicitação"}
+          <div style={{ width: "100%", fontFamily: "var(--mono)", fontSize: 10, marginTop: 4, color: maxDisponivel !== null && maxDisponivel <= 0 ? "var(--danger)" : "var(--text-dim)" }}>
+            {estoque !== null
+              ? (estoque <= 0 ? "Atenção: Produto sem estoque disponível no setor." : `Disponível no setor: ${estoque} un. (Limite máximo: ${estoque} un.)`)
+              : "Produto disponível para solicitação"}
           </div>
         </div>
       )}
@@ -831,15 +860,37 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
 
   const addItem = (item) => {
     const existing = itens.find(i => i.nome.toLowerCase() === item.nome.toLowerCase());
+    const estMax = item.estoqueMax ?? null;
+
+    if (estMax !== null && estMax <= 0) {
+      toast(`"${item.nome}" está zerado no estoque. Não é possível solicitar.`, "error");
+      return;
+    }
+
     if (existing) {
+      const novaQtd = existing.quantidade + item.quantidade;
+      if (estMax !== null && novaQtd > estMax) {
+        toast(`Limite atingido! Apenas ${estMax} un. disponíveis em estoque.`, "warn");
+        setItens(prev => prev.map(i =>
+          i.nome.toLowerCase() === item.nome.toLowerCase()
+            ? { ...i, quantidade: estMax, estoqueMax: estMax }
+            : i
+        ));
+        return;
+      }
       setItens(prev => prev.map(i =>
         i.nome.toLowerCase() === item.nome.toLowerCase()
-          ? { ...i, quantidade: i.quantidade + item.quantidade }
+          ? { ...i, quantidade: novaQtd, estoqueMax: estMax }
           : i
       ));
       toast(`+${item.quantidade}x "${item.nome}"`, "info");
     } else {
-      setItens(prev => [...prev, item]);
+      let q = item.quantidade;
+      if (estMax !== null && q > estMax) {
+        toast(`Quantidade ajustada para ${estMax} un. (estoque disponível)`, "warn");
+        q = estMax;
+      }
+      setItens(prev => [...prev, { ...item, quantidade: q, estoqueMax: estMax }]);
       toast(`"${item.nome}" adicionado ao pedido`, "info");
     }
   };
@@ -847,11 +898,18 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
   const updateItemQty = (idx, delta) => {
     setItens(prev => {
       const upd = [...prev];
-      const newQty = (upd[idx].quantidade || 1) + delta;
+      const it = upd[idx];
+      const estMax = it.estoqueMax ?? null;
+      let newQty = (it.quantidade || 1) + delta;
+
       if (newQty <= 0) {
         return prev.filter((_, i) => i !== idx);
       }
-      upd[idx] = { ...upd[idx], quantidade: newQty };
+      if (estMax !== null && newQty > estMax) {
+        toast(`Limite de estoque: máximo ${estMax} un. para "${it.nome}"`, "warn");
+        newQty = estMax;
+      }
+      upd[idx] = { ...it, quantidade: newQty };
       return upd;
     });
   };
@@ -862,6 +920,14 @@ function FormRequisicao({ setorKey, setor, getCol, getColPrivate, toast, activeU
     if (itens.length === 0) { toast("Adicione pelo menos um item.", "error"); return; }
     const nomeSolicitante = activeUser ? activeUser.nome : solicitante.trim();
     if (!nomeSolicitante) { toast("Informe quem está solicitando.", "error"); return; }
+
+    for (const item of itens) {
+      if (item.estoqueMax !== null && item.quantidade > item.estoqueMax) {
+        toast(`Item "${item.nome}" ultrapassa o estoque disponível (${item.estoqueMax} un.)!`, "error");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const codigo = genCodigo();

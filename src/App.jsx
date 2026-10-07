@@ -77,29 +77,29 @@ const styles = `
   .hbtn.danger:hover,.hbtn.danger:active { border-color:var(--danger); color:var(--danger); }
   .header-email { font-family:var(--mono); font-size:11px; color:var(--text-dim); }
   .main-layout { display:flex; flex:1; overflow:hidden; }
-  .sidebar { width:240px; background:var(--sidebar-bg); border:1.5px solid var(--sidebar-border); border-radius:24px; margin:14px 0 14px 14px; height:calc(100vh - var(--header-h) - 28px); height:calc(100dvh - var(--header-h) - 28px); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:width 0.28s cubic-bezier(0.16,1,0.3,1), margin 0.28s cubic-bezier(0.16,1,0.3,1), background 0.25s, border-color 0.25s; }
+  .sidebar { width:240px; background:var(--sidebar-bg); border:1.5px solid var(--sidebar-border); border-radius:24px; margin:14px 0 14px 14px; height:calc(100vh - var(--header-h) - 28px); height:calc(100dvh - var(--header-h) - 28px); display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.08); transition:width 0.28s cubic-bezier(0.16,1,0.3,1), margin 0.28s cubic-bezier(0.16,1,0.3,1), background 0.25s, border-color 0.25s; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
   .sidebar.collapsed { width:72px; }
-  .sidebar-setor { padding:16px 14px; border-bottom:1px solid var(--sidebar-border); display:flex; align-items:center; justify-content:space-between; overflow:hidden; }
-  .sidebar-setor-label { font-family:var(--mono); font-size:9px; color:var(--sidebar-text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-  .sidebar-setor-name { font-family:var(--display); font-size:20px; letter-spacing:2px; display:flex; align-items:center; gap:7px; white-space:nowrap; }
-  .sidebar-nav { padding:10px 0; flex:1; display:flex; flex-direction:column; gap:2px; }
+  .sidebar-setor { padding:14px 12px; border-bottom:1px solid var(--sidebar-border); display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+  .sidebar-setor-label { font-family:var(--mono); font-size:9px; color:var(--sidebar-text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sidebar-setor-name { font-family:var(--display); font-size:19px; letter-spacing:1px; display:flex; align-items:center; gap:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+  .sidebar-nav { padding:10px 0; flex:1; display:flex; flex-direction:column; gap:2px; touch-action:pan-y; }
   .sidebar-group { padding:10px 14px 4px; font-family:var(--mono); font-size:9px; color:var(--sidebar-text-dim); letter-spacing:2px; text-transform:uppercase; white-space:nowrap; overflow:hidden; }
   .sidebar.collapsed .sidebar-group { opacity:0; height:4px; padding:0; }
-  .sitem { display:flex; align-items:center; gap:12px; padding:10px 14px; margin:3px 10px; border-radius:14px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--sidebar-text); background:transparent; border:1.5px solid transparent; cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); white-space:nowrap; position:relative; }
+  .sitem { display:flex; align-items:center; gap:12px; padding:11px 14px; margin:3px 10px; border-radius:14px; font-family:var(--sans); font-size:13px; font-weight:500; color:var(--sidebar-text); background:transparent; border:1.5px solid transparent; cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); white-space:nowrap; position:relative; min-height:42px; -webkit-tap-highlight-color:transparent; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
   .sidebar.collapsed .sitem { margin:3px 8px; padding:10px; justify-content:center; }
-  .sitem:hover { background:var(--sidebar-hover); color:var(--sidebar-text); }
+  .sitem:hover,.sitem:active { background:var(--sidebar-hover); color:var(--sidebar-text); }
   .sitem.active { border-color:var(--accent); background:var(--accent-light); color:var(--accent); font-weight:600; }
   .sitem-icon { width:22px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .sitem-label { transition:opacity 0.2s, max-width 0.2s; overflow:hidden; text-overflow:ellipsis; }
   .sidebar.collapsed .sitem-label { opacity:0; display:none; }
   .sitem-badge { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:var(--danger); color:white; font-family:var(--mono); font-size:9px; padding:1px 6px; border-radius:10px; min-width:18px; text-align:center; }
   .sidebar.collapsed .sitem-badge { right:4px; top:4px; transform:none; }
-  .sidebar-toggle-btn { background:transparent; border:1px solid var(--border2); color:var(--text-dim); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; flex-shrink:0; }
-  .sidebar-toggle-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .sidebar-toggle-btn { background:transparent; border:1px solid var(--border2); color:var(--text-dim); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; flex-shrink:0; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  .sidebar-toggle-btn:hover,.sidebar-toggle-btn:active { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
   .content { flex:1; overflow-y:auto; padding:24px 20px; -webkit-overflow-scrolling:touch; transition:all 0.28s ease; }
   .bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; height:var(--bottom-h); background:var(--surface); border-top:2px solid var(--border2); z-index:300; }
   .bottom-nav-inner { display:flex; align-items:stretch; height:calc(var(--bottom-h) - env(safe-area-inset-bottom,0px)); padding:0 6px; gap:2px; }
-  .bnav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:10px 4px 8px; cursor:pointer; color:var(--text-dim); position:relative; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:color .15s; border-radius:6px; margin:4px 0; }
+  .bnav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:10px 4px 8px; cursor:pointer; color:var(--text-dim); position:relative; -webkit-tap-highlight-color:transparent; touch-action:manipulation; transition:color .15s; border-radius:6px; margin:4px 0; user-select:none; -webkit-user-select:none; }
   .bnav-item:active { background:var(--surface2); }
   .bnav-item.active { color:var(--accent); }
   .bnav-item.active::before { content:''; position:absolute; top:0; left:15%; right:15%; height:2px; background:var(--accent); border-radius:0 0 3px 3px; }
@@ -2423,7 +2423,15 @@ function BaixarAppsView() {
     { id: "config",      icon: "settings",      label: "Config" },
   ];
 
+  const touchScrollRef = useRef(false);
+  const isNavigatingRef = useRef(false);
+
   const handleNavClick = (itemId) => {
+    if (touchScrollRef.current) return;
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => { isNavigatingRef.current = false; }, 200);
+
     if (itemId === "caixas") {
       setTab("config");
       setConfigSubTab("caixas");
@@ -2638,11 +2646,11 @@ function BaixarAppsView() {
         <div className="main-layout">
           <nav className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
             <div className="sidebar-setor">
-              <div>
+              <div style={{ minWidth: 0, flex: 1, overflow: "hidden", paddingRight: 6 }}>
                 {!sidebarCollapsed && <div className="sidebar-setor-label">Setor Ativo</div>}
-                <div className="sidebar-setor-name" style={{ color: s.color }}>
-                  <Icon name={s.iconName || "package"} size={18} color={s.color} />
-                  {!sidebarCollapsed && <span>{s.label}</span>}
+                <div className="sidebar-setor-name" style={{ color: s.color, display: "flex", alignItems: "center", gap: 7, minWidth: 0, overflow: "hidden" }}>
+                  <Icon name={s.iconName || "package"} size={18} color={s.color} style={{ flexShrink: 0 }} />
+                  {!sidebarCollapsed && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>}
                 </div>
               </div>
               <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="sidebar-toggle-btn" title={sidebarCollapsed ? "Expandir" : "Recolher"}>
@@ -2739,13 +2747,18 @@ function BaixarAppsView() {
         {/* ══════════ MODAL FLUTUANTE DE NAVEGAÇÃO (ESTILO DESIGNER TV) ══════════ */}
         {showModalMenu && (
           <div className="modal-sidebar-overlay" onClick={e => e.target === e.currentTarget && setShowModalMenu(false)}>
-            <div className="modal-sidebar-card">
+            <div
+              className="modal-sidebar-card"
+              onTouchStart={() => { touchScrollRef.current = false; }}
+              onTouchMove={() => { touchScrollRef.current = true; }}
+              onTouchEnd={() => { setTimeout(() => { touchScrollRef.current = false; }, 120); }}
+            >
               <div className="modal-sidebar-header">
                 <div className="modal-sidebar-brand">
                   <div className="modal-sidebar-logo-icon">
                     <Icon name="package" size={22} color="var(--accent)" />
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
                     <div className="modal-sidebar-title">SYS</div>
                     <div className="modal-sidebar-sub">Setor: {s?.label || "Geral"}</div>
                   </div>
